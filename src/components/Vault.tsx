@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Memory, Album, DayReaction, sortMemoriesIntoAlbums } from '../lib/groq';
 import { LOCAL_TRACKS, Track } from '../lib/music';
+import { uploadMemoryImage, isSupabaseConfigured } from '../services/supabase';
 import AlbumDetail from './AlbumDetail';
 import CalendarView from './CalendarView';
 import MusicPlayer from './MusicPlayer';
@@ -119,6 +120,7 @@ export default function Vault({
   const [newMood, setNewMood] = useState('joy');
   const [newLocation, setNewLocation] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   
   // Voice Recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -874,7 +876,19 @@ export default function Vault({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    let photoUrlToUse = photoPreview || undefined;
+
+    // Upload directly to Supabase Storage if an image was selected
+    if (selectedPhotoFile && isSupabaseConfigured()) {
+      try {
+        const uploadRes = await uploadMemoryImage(selectedPhotoFile);
+        photoUrlToUse = uploadRes.signedUrl;
+      } catch (uploadErr) {
+        console.warn('Supabase image upload failed (using local preview fallback):', uploadErr);
+      }
+    }
+
     // Mock sentiment and emotion detection
     const emotions = ['happy', 'nostalgic', 'melancholic', 'peaceful'];
     const mockEmotion = emotions[Math.floor(Math.random() * emotions.length)];
@@ -888,7 +902,7 @@ export default function Vault({
       mood: newMood,
       location: newLocation,
       date: new Date(newDate).toISOString(),
-      photoUrl: photoPreview || undefined,
+      photoUrl: photoUrlToUse,
       audioUrl: audioUrl || undefined,
       musicUrl: newType === 'music' ? (musicSource === 'local' ? selectedLocalTrack?.url : undefined) : undefined,
       transcript: mockTranscript,
@@ -896,7 +910,7 @@ export default function Vault({
       music: newSong ? {
         song: newSong,
         artist: newArtist,
-        albumArt: photoPreview || `https://picsum.photos/seed/${newSong}/300/300`
+        albumArt: photoUrlToUse || `https://picsum.photos/seed/${newSong}/300/300`
       } : undefined
     };
     onAddMemory(mem);
@@ -904,6 +918,7 @@ export default function Vault({
     onClearPrefilledDate();
     // Reset
     setNewTitle(''); setNewDesc(''); setNewLocation(''); setPhotoPreview(null);
+    setSelectedPhotoFile(null);
     setAudioUrl(null); setNewSong(''); setNewArtist('');
   };
 
@@ -1068,6 +1083,7 @@ export default function Vault({
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          setSelectedPhotoFile(file);
                           const reader = new FileReader();
                           reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
                           reader.readAsDataURL(file);
