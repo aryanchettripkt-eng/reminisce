@@ -17,8 +17,11 @@ const userPickerSessions = new Map<string, { userId: string; sessionId: string; 
 const GOOGLE_CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
-const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID?.trim();
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+
+// Sanitize APP_URL — strip any accidental newlines or trailing whitespace
+const APP_URL_CLEAN = process.env.APP_URL?.replace(/[\r\n\t]/g, '').trim();
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -47,11 +50,11 @@ function getRequestOrigin(req: Request): string {
     return `${proto}://${host}`.replace(/\/+$/, '');
   }
 
-  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
-    return process.env.APP_URL.replace(/\/+$/, '');
+  if (APP_URL_CLEAN && !APP_URL_CLEAN.includes('localhost')) {
+    return APP_URL_CLEAN?.replace(/\/+$/, "") ?? "";
   }
 
-  return host ? `${proto}://${host}`.replace(/\/+$/, '') : (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  return host ? `${proto}://${host}`.replace(/\/+$/, '') : (APP_URL_CLEAN || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 // Helper to encrypt a payload into an opaque token using GOOGLE_CLIENT_SECRET
@@ -650,8 +653,8 @@ async function getValidSpotifyAccessToken(req: Request, res: Response, userId: s
 // Remove this endpoint after debugging is complete
 app.get('/api/debug-spotify', (req: Request, res: Response) => {
   let canonicalBase: string;
-  if (process.env.APP_URL) {
-    canonicalBase = process.env.APP_URL.replace(/\/+$/, '');
+  if (APP_URL_CLEAN) {
+    canonicalBase = APP_URL_CLEAN?.replace(/\/+$/, "") ?? "";
   } else if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     canonicalBase = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/+$/, '');
   } else {
@@ -664,7 +667,7 @@ app.get('/api/debug-spotify', (req: Request, res: Response) => {
     clientSecretSet: Boolean(SPOTIFY_CLIENT_SECRET),
     redirectUri: `${canonicalBase}/auth/spotify/callback`,
     canonicalBase,
-    appUrl: process.env.APP_URL || '(not set)',
+    appUrl: APP_URL_CLEAN || '(not set)',
     vercelProdUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || '(not set)',
     vercelUrl: process.env.VERCEL_URL || '(not set)',
     requestOrigin: getRequestOrigin(req),
@@ -682,8 +685,8 @@ app.get('/api/auth/spotify/url', async (req: Request, res: Response) => {
     // 3. VERCEL_URL — Vercel auto-sets this per-deployment (preview URLs, avoid for OAuth)
     // 4. getRequestOrigin — dynamic fallback for local dev
     let canonicalBase: string;
-    if (process.env.APP_URL) {
-      canonicalBase = process.env.APP_URL.replace(/\/+$/, '');
+    if (APP_URL_CLEAN) {
+      canonicalBase = APP_URL_CLEAN?.replace(/\/+$/, "") ?? "";
     } else if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
       canonicalBase = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/+$/, '');
     } else {
@@ -693,7 +696,7 @@ app.get('/api/auth/spotify/url', async (req: Request, res: Response) => {
     const redirectUri = `${canonicalBase}/auth/spotify/callback`;
     const scope = 'playlist-read-private playlist-read-collaborative user-read-private';
 
-    console.log(`[Spotify OAuth] redirect_uri = ${redirectUri} | APP_URL=${process.env.APP_URL} | VERCEL_PROD=${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+    console.log(`[Spotify OAuth] redirect_uri = ${redirectUri} | APP_URL=${APP_URL_CLEAN} | VERCEL_PROD=${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
 
     const stateData = { userId: user.id, redirectUri, timestamp: Date.now() };
     const stateToken = encryptTokenPayload(stateData, SPOTIFY_CLIENT_SECRET || 'spotify-secret');
@@ -729,7 +732,7 @@ app.get(['/auth/spotify/callback', '/auth/spotify/callback/'], async (req: Reque
   const userId = stateData.userId;
   // Use the redirectUri stored in state (set at auth URL generation time)
   // so the token exchange always uses the same canonical URI.
-  const redirectUri = stateData.redirectUri || `${(process.env.APP_URL || getRequestOrigin(req)).replace(/\/+$/, '')}/auth/spotify/callback`;
+  const redirectUri = stateData.redirectUri || `${(APP_URL_CLEAN || getRequestOrigin(req)).replace(/\/+$/, '')}/auth/spotify/callback`;
 
   try {
     const response = await axios.post(
@@ -1169,4 +1172,5 @@ app.post('/api/spotify/disconnect', async (req: Request, res: Response) => {
 });
 
 export default app;
+
 
