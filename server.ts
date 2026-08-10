@@ -696,8 +696,9 @@ async function startServer() {
   app.get('/api/auth/spotify/url', async (req: Request, res: Response) => {
     try {
       const { user } = await authenticateUser(req);
-      const origin = getRequestOrigin(req).replace(/\/+$/, '');
-      const redirectUri = `${origin}/auth/spotify/callback`;
+      // Always use APP_URL (canonical domain) to avoid preview deployment URL mismatch
+      const canonicalBase = (process.env.APP_URL || getRequestOrigin(req)).replace(/\/+$/, '');
+      const redirectUri = `${canonicalBase}/auth/spotify/callback`;
       const scope = 'playlist-read-private playlist-read-collaborative user-read-private';
 
       console.log(`[Spotify OAuth] redirect_uri = ${redirectUri}`);
@@ -734,7 +735,9 @@ async function startServer() {
     }
 
     const userId = stateData.userId;
-    const redirectUri = stateData.redirectUri || `${getRequestOrigin(req).replace(/\/+$/, '')}/auth/spotify/callback`;
+    // Use redirectUri stored in state token (set at URL generation time) so
+    // token exchange uses the same canonical URI regardless of current host.
+    const redirectUri = stateData.redirectUri || `${(process.env.APP_URL || getRequestOrigin(req)).replace(/\/+$/, '')}/auth/spotify/callback`;
 
     try {
       const response = await axios.post(
