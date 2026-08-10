@@ -42,6 +42,8 @@ export interface MemoryRecord {
   music_track: MusicTrackData | null;
   tags: string[];
   is_favorite: boolean;
+  google_photos_media_id?: string | null;
+  source?: 'upload' | 'google_photos';
 
   created_at: string;
   updated_at: string;
@@ -77,6 +79,8 @@ export interface CreateMemoryInput {
   music?: MusicTrackData;
   tags?: string[];
   isFavorite?: boolean;
+  google_photos_media_id?: string | null;
+  source?: 'upload' | 'google_photos';
 }
 
 export interface UpdateMemoryInput {
@@ -91,6 +95,8 @@ export interface UpdateMemoryInput {
   music?: MusicTrackData;
   tags?: string[];
   isFavorite?: boolean;
+  google_photos_media_id?: string | null;
+  source?: 'upload' | 'google_photos';
 }
 
 export interface ImageUploadResult {
@@ -110,6 +116,30 @@ export interface FileValidationResult {
 export interface ImageDimensions {
   width: number;
   height: number;
+}
+
+export interface GooglePhotosImportResult {
+  imported: Memory[];
+  duplicates: string[];
+  unsupported: string[];
+  failed: { id: string; error: string }[];
+}
+
+export interface GooglePhotosSessionResponse {
+  sessionId: string;
+  pickerUri: string;
+  pollingConfig?: {
+    pollInterval?: string;
+    timeoutIn?: string;
+  };
+}
+
+export interface GooglePhotosPollResponse {
+  mediaItemsSet: boolean;
+  pollingConfig?: {
+    pollInterval?: string;
+    timeoutIn?: string;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -162,6 +192,8 @@ export function memoryInputToDbPayload(
   if (input.music !== undefined) payload.music_track = input.music || null;
   if (input.tags !== undefined) payload.tags = input.tags;
   if (input.isFavorite !== undefined) payload.is_favorite = input.isFavorite;
+  if (input.google_photos_media_id !== undefined) payload.google_photos_media_id = input.google_photos_media_id;
+  if (input.source !== undefined) payload.source = input.source;
 
   return payload;
 }

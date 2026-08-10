@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { Memory, Album, DayReaction, sortMemoriesIntoAlbums } from '../lib/groq';
 import { LOCAL_TRACKS, Track } from '../lib/music';
-import { createMemory, uploadMemoryImage, isSupabaseConfigured, useAuth } from '../services/supabase';
+import { createMemory, uploadMemoryImage, isSupabaseConfigured, useAuth, runGooglePhotosImportFlow } from '../services/supabase';
 import AlbumDetail from './AlbumDetail';
 import CalendarView from './CalendarView';
 import MusicPlayer from './MusicPlayer';
@@ -134,6 +134,46 @@ export default function Vault({
   const [newSong, setNewSong] = useState('');
   const [newArtist, setNewArtist] = useState('');
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Google Photos state
+  const [isImportingGoogle, setIsImportingGoogle] = useState(false);
+  const [googleImportStatus, setGoogleImportStatus] = useState<string | null>(null);
+
+  const handleImportGooglePhotos = async () => {
+    if (!user) {
+      alert('Please sign in to Reminiq first.');
+      return;
+    }
+
+    setIsImportingGoogle(true);
+    setGoogleImportStatus('Connecting...');
+    try {
+      const result = await runGooglePhotosImportFlow({
+        onStatusChange: (status) => setGoogleImportStatus(status),
+      });
+
+      if (result.imported.length > 0) {
+        for (const mem of result.imported) {
+          onAddMemory(mem);
+        }
+        alert(`Successfully imported ${result.imported.length} photo${result.imported.length > 1 ? 's' : ''} from Google Photos!`);
+        onSetIsAddModalOpen(false);
+      } else if (result.duplicates.length > 0) {
+        alert('The selected photo(s) have already been imported into Reminiq.');
+      } else if (result.unsupported.length > 0) {
+        alert('Some items were skipped (videos are not supported in this version).');
+      }
+    } catch (err: any) {
+      console.error('Google Photos Import error:', err);
+      if (!err.message?.includes('cancelled')) {
+        alert(err.message || 'Failed to import Google Photos.');
+      }
+    } finally {
+      setIsImportingGoogle(false);
+      setGoogleImportStatus(null);
+    }
+  };
+
 
   const startRecording = async () => {
     try {
@@ -1087,33 +1127,16 @@ export default function Vault({
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="font-hand text-xs text-brown/50 uppercase tracking-widest">Upload Photo</div>
-                    {!googleToken ? (
-                      <button 
-                        onClick={onConnectGoogle}
-                        className="font-hand text-[10px] text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        Connect Google Photos
-                      </button>
-                    ) : (
-                      <div className="font-hand text-[10px] text-green-600">Connected to Photos</div>
-                    )}
+                    <button 
+                      type="button"
+                      onClick={handleImportGooglePhotos}
+                      disabled={isImportingGoogle}
+                      className="font-hand text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles size={12} className={isImportingGoogle ? "animate-spin text-blue-600" : "text-blue-600"} />
+                      {isImportingGoogle ? (googleImportStatus || 'Importing...') : 'Import from Google Photos'}
+                    </button>
                   </div>
-
-                  {googleToken && googlePhotos.length > 0 && (
-                    <div className="mb-4">
-                      <div className="font-hand text-[10px] text-brown/40 mb-2 italic">Select from your recent Google Photos:</div>
-                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        {googlePhotos.map((photo) => (
-                          <img 
-                            key={photo.id}
-                            src={photo.baseUrl}
-                            onClick={() => setPhotoPreview(photo.baseUrl)}
-                            className={`w-16 h-16 object-cover rounded-[2px] cursor-pointer border-2 transition-all ${photoPreview === photo.baseUrl ? 'border-dusty-rose scale-105' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <label className="block border-2 border-dashed border-light-brown/20 rounded-[4px] p-7 text-center cursor-pointer hover:border-dusty-rose/50 hover:bg-dusty-rose/5 transition-all">
                     <input 

@@ -16,60 +16,56 @@ import {
   Sparkles
 } from 'lucide-react';
 import { searchMemories, Memory } from '../lib/groq';
-import { useAuth } from '../services/supabase';
+import { useAuth, runGooglePhotosImportFlow } from '../services/supabase';
 
 interface LandingPageProps {
   onEnterVault: () => void;
   memories: Memory[];
+  onAddMemory?: (memory: Memory) => void;
 }
 
-export default function LandingPage({ onEnterVault, memories }: LandingPageProps) {
+export default function LandingPage({ onEnterVault, memories, onAddMemory }: LandingPageProps) {
   const { user, signInWithGoogle, signOut, isLoading: isAuthLoading } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [demoQuery, setDemoQuery] = useState('');
   const [demoResult, setDemoResult] = useState<{ intro: string; memoryId: string | null } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
-
-      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        const token = event.data.token;
-        handleSyncPhotos(token);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const handleSyncPhotos = async (token: string) => {
-    setIsSyncing(true);
-    try {
-      const response = await fetch('/api/photos', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch photos');
-      const data = await response.json();
-      console.log('Synced photos:', data);
-      alert('Successfully synced your Google Photos! They are now being woven into your journal.');
-    } catch (error) {
-      console.error('Sync Error:', error);
-      alert('Failed to sync photos. Please try again.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   const startGoogleSync = async () => {
+    if (!user) {
+      alert('Please sign in to Reminiq first.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncStatus('Connecting...');
     try {
-      const response = await fetch('/api/auth/google/url');
-      const { url } = await response.json();
-      window.open(url, 'google_auth', 'width=600,height=700');
-    } catch (error) {
-      console.error('Auth URL Error:', error);
+      const result = await runGooglePhotosImportFlow({
+        onStatusChange: (status) => setSyncStatus(status),
+      });
+
+      if (result.imported.length > 0) {
+        if (onAddMemory) {
+          for (const mem of result.imported) {
+            onAddMemory(mem);
+          }
+        }
+        alert(`Successfully imported ${result.imported.length} photo${result.imported.length > 1 ? 's' : ''} from Google Photos!`);
+      } else if (result.duplicates.length > 0) {
+        alert('Selected photos have already been imported into Reminiq.');
+      } else if (result.unsupported.length > 0) {
+        alert('Some items were skipped (videos are not currently supported).');
+      }
+    } catch (error: any) {
+      if (!error.message?.includes('cancelled')) {
+        console.error('Import Error:', error);
+        alert(error.message || 'Failed to import photos from Google Photos.');
+      }
+    } finally {
+      setIsSyncing(false);
+      setSyncStatus(null);
     }
   };
 
@@ -341,7 +337,7 @@ export default function LandingPage({ onEnterVault, memories }: LandingPageProps
               className="inline-flex items-center justify-center gap-3 px-12 py-4 bg-white/90 backdrop-blur-sm text-dark-brown font-hand text-xl tracking-wider rounded-[3px] border border-light-brown/20 transition-all hover:bg-cream hover:translate-x-[-3px] hover:translate-y-[-3px] shadow-[4px_4px_0_var(--color-light-brown),8px_8px_0_rgba(138,158,123,0.05)] hover:shadow-[6px_6px_0_var(--color-light-brown),12px_12px_0_rgba(138,158,123,0.1)] disabled:opacity-50"
             >
               <Camera size={22} className={isSyncing ? "animate-spin opacity-70" : "opacity-70"} />
-              {isSyncing ? "Syncing..." : "Sync Google Photos"}
+              {isSyncing ? (syncStatus || "Importing...") : "Import from Google Photos"}
             </motion.button>
           </div>
         </div>

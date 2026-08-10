@@ -346,6 +346,7 @@ function ReminiqApp() {
         <LandingPage 
           onEnterVault={() => setView('vault')} 
           memories={memories} 
+          onAddMemory={addMemory}
         />
       ) : (
         <Vault 
