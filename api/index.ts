@@ -646,18 +646,54 @@ async function getValidSpotifyAccessToken(req: Request, res: Response, userId: s
 // Spotify OAuth & Endpoints (2026 Web API)
 // ─────────────────────────────────────────────────────────────
 
+// DEBUG: Expose what credentials and redirect URI are being used
+// Remove this endpoint after debugging is complete
+app.get('/api/debug-spotify', (req: Request, res: Response) => {
+  let canonicalBase: string;
+  if (process.env.APP_URL) {
+    canonicalBase = process.env.APP_URL.replace(/\/+$/, '');
+  } else if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    canonicalBase = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/+$/, '');
+  } else {
+    canonicalBase = getRequestOrigin(req).replace(/\/+$/, '');
+  }
+
+  res.json({
+    clientIdPrefix: SPOTIFY_CLIENT_ID ? SPOTIFY_CLIENT_ID.substring(0, 8) + '...' : 'NOT SET',
+    clientIdLength: SPOTIFY_CLIENT_ID?.length ?? 0,
+    clientSecretSet: Boolean(SPOTIFY_CLIENT_SECRET),
+    redirectUri: `${canonicalBase}/auth/spotify/callback`,
+    canonicalBase,
+    appUrl: process.env.APP_URL || '(not set)',
+    vercelProdUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || '(not set)',
+    vercelUrl: process.env.VERCEL_URL || '(not set)',
+    requestOrigin: getRequestOrigin(req),
+  });
+});
+
 // 1. Generate Spotify OAuth Authorization URL
 app.get('/api/auth/spotify/url', async (req: Request, res: Response) => {
   try {
     const { user } = await authenticateUser(req);
 
-    // Always use APP_URL (canonical domain) as the redirect base to avoid
-    // Vercel preview deployment URLs breaking the registered redirect URI.
-    const canonicalBase = (process.env.APP_URL || getRequestOrigin(req)).replace(/\/+$/, '');
+    // Priority order for canonical base URL:
+    // 1. APP_URL (explicitly set in Vercel env vars) — most reliable
+    // 2. VERCEL_PROJECT_PRODUCTION_URL — Vercel auto-sets this to the production domain
+    // 3. VERCEL_URL — Vercel auto-sets this per-deployment (preview URLs, avoid for OAuth)
+    // 4. getRequestOrigin — dynamic fallback for local dev
+    let canonicalBase: string;
+    if (process.env.APP_URL) {
+      canonicalBase = process.env.APP_URL.replace(/\/+$/, '');
+    } else if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+      canonicalBase = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/+$/, '');
+    } else {
+      canonicalBase = getRequestOrigin(req).replace(/\/+$/, '');
+    }
+
     const redirectUri = `${canonicalBase}/auth/spotify/callback`;
     const scope = 'playlist-read-private playlist-read-collaborative user-read-private';
 
-    console.log(`[Spotify OAuth] redirect_uri = ${redirectUri}`);
+    console.log(`[Spotify OAuth] redirect_uri = ${redirectUri} | APP_URL=${process.env.APP_URL} | VERCEL_PROD=${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
 
     const stateData = { userId: user.id, redirectUri, timestamp: Date.now() };
     const stateToken = encryptTokenPayload(stateData, SPOTIFY_CLIENT_SECRET || 'spotify-secret');
