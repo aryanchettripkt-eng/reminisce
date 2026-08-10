@@ -51,9 +51,11 @@ export default function MonthlyFolders({ memories, onAddMemoryAtDate }: MonthlyF
   };
 
   return (
+    <div className="min-h-screen bg-warm-white py-12 px-4 sm:px-8 relative">
       <div className="film-grain" />
 
       {!selectedMonth ? (
+        /* MONTHLY FOLDER POCKETS SELECTION GRID ("Half-Year Tucked Inside My Folder") */
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <div className="font-hand text-sm text-moss tracking-[0.2em] uppercase mb-2">✦ Organized Memory Vault ✦</div>
