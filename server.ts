@@ -271,21 +271,25 @@ async function startServer() {
         expiresAt,
       }, GOOGLE_CLIENT_SECRET || 'secret');
 
-      // Emit event to opener window and close popup (DO NOT expose token to client)
+      res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
       res.send(`
         <html>
           <head><title>Google Photos Connected</title></head>
           <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #fdfaf6; color: #4a342a;">
             <script>
-              if (window.opener) {
-                window.opener.postMessage({ type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', authTicket: ${JSON.stringify(authTicket)} }, '*');
-                window.close();
-              } else {
+              try {
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', authTicket: ${JSON.stringify(authTicket)} }, '*');
+                  setTimeout(function() { window.close(); }, 300);
+                } else {
+                  window.location.href = '/';
+                }
+              } catch (e) {
                 window.location.href = '/';
               }
             </script>
             <h3>Google Photos connected successfully.</h3>
-            <p>This window should close automatically.</p>
+            <p>Closing window...</p>
           </body>
         </html>
       `);

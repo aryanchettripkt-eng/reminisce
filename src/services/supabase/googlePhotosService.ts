@@ -177,6 +177,16 @@ export async function cancelPickerSession(sessionId: string): Promise<void> {
   }
 }
 
+function isWindowClosed(win: Window | null): boolean {
+  if (!win) return true;
+  try {
+    return Boolean(win.closed);
+  } catch {
+    // COOP security blocks window.closed access across origins
+    return false;
+  }
+}
+
 /**
  * Orchestrates the full Google Photos Picker flow:
  * 1. Verifies/requests authorization if needed
@@ -225,7 +235,7 @@ export async function runGooglePhotosImportFlow(options?: {
         window.addEventListener('message', handleAuthMessage);
 
         const checkClosed = setInterval(() => {
-          if (popup.closed) {
+          if (isWindowClosed(popup)) {
             clearInterval(checkClosed);
             window.removeEventListener('message', handleAuthMessage);
             if (!authCompleted && !getSavedAuthTicket()) {
@@ -294,7 +304,7 @@ export async function runGooglePhotosImportFlow(options?: {
 
     // If popup closed without mediaItemsSet, check 2 extra poll cycles
     // to give Google's backend time to finalize the selection handoff
-    if (pickerPopup && pickerPopup.closed && !mediaReady) {
+    if (isWindowClosed(pickerPopup) && !mediaReady) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const retryCheck = await pollPickerSession(session.sessionId).catch(() => null);
       if (retryCheck?.mediaItemsSet) {
