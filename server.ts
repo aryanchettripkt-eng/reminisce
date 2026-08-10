@@ -135,8 +135,8 @@ async function startServer() {
   async function getValidGoogleAccessToken(req: Request, res: Response, userId: string): Promise<string> {
     let tokenData: { accessToken: string; refreshToken?: string; expiresAt: number; userId?: string } | undefined;
 
-    // 1. Try reading stateless encrypted ticket from header
-    const ticketHeader = req.headers['x-google-auth-ticket'] as string;
+    // 1. Try reading stateless encrypted ticket from header or cookie
+    const ticketHeader = (req.headers['x-google-auth-ticket'] as string) || (req.headers.cookie ? req.headers.cookie.match(/reminiq_google_ticket=([^;]+)/)?.[1] : undefined);
     if (ticketHeader) {
       try {
         const decrypted = decryptTokenPayload(ticketHeader, GOOGLE_CLIENT_SECRET || 'secret');
@@ -271,6 +271,7 @@ async function startServer() {
         expiresAt,
       }, GOOGLE_CLIENT_SECRET || 'secret');
 
+      res.setHeader('Set-Cookie', `reminiq_google_ticket=${authTicket}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`);
       res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
       res.send(`
         <html>
@@ -278,15 +279,19 @@ async function startServer() {
           <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #fdfaf6; color: #4a342a;">
             <script>
               try {
+                localStorage.setItem('reminiq_google_auth_ticket', ${JSON.stringify(authTicket)});
+                localStorage.setItem('reminiq_google_auth_success', String(Date.now()));
+              } catch (e) {}
+
+              try {
                 if (window.opener) {
                   window.opener.postMessage({ type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', authTicket: ${JSON.stringify(authTicket)} }, '*');
-                  setTimeout(function() { window.close(); }, 300);
-                } else {
-                  window.location.href = '/';
                 }
-              } catch (e) {
-                window.location.href = '/';
-              }
+              } catch (e) {}
+
+              setTimeout(function() {
+                window.close();
+              }, 300);
             </script>
             <h3>Google Photos connected successfully.</h3>
             <p>Closing window...</p>
