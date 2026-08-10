@@ -1,17 +1,48 @@
 /**
- * Reminiq - Supabase Memory & Image Storage Types
+ * Reminiq - Supabase Memory & Image/Audio Storage Types
  */
+
+import { Memory } from '../lib/groq';
+
+export type MemoryType = 'photo' | 'voice' | 'text' | 'music';
+
+export interface MusicTrackData {
+  song: string;
+  artist: string;
+  albumArt?: string;
+}
 
 export interface MemoryRecord {
   id: string;
   user_id: string;
-  storage_bucket: string;
-  storage_path: string;
+  type: MemoryType;
+  title: string;
+  description: string;
+  mood: string;
+  location: string | null;
+  memory_date: string;
+  
+  // Image Storage Metadata (Nullable for non-image memories)
+  storage_bucket: string | null;
+  storage_path: string | null;
   original_filename: string | null;
-  mime_type: string;
-  file_size: number;
+  mime_type: string | null;
+  file_size: number | null;
   width: number | null;
   height: number | null;
+
+  // Audio Storage Metadata (Nullable for non-voice memories)
+  audio_storage_bucket: string | null;
+  audio_storage_path: string | null;
+
+  // External / AI metadata
+  music_url: string | null;
+  transcript: string | null;
+  emotion: string | null;
+  music_track: MusicTrackData | null;
+  tags: string[];
+  is_favorite: boolean;
+
   created_at: string;
   updated_at: string;
 }
@@ -32,12 +63,34 @@ export interface SignedUrlOptions {
   transform?: ImageTransformOptions;
 }
 
-export interface UploadMemoryOptions {
-  userId?: string;
-  memoryId?: string;
-  originalFilename?: string;
-  expiresIn?: number;
-  variant?: ImageVariant;
+export interface CreateMemoryInput {
+  id?: string;
+  type: MemoryType;
+  title: string;
+  desc?: string;
+  mood?: string;
+  location?: string;
+  date?: string;
+  transcript?: string;
+  emotion?: string;
+  musicUrl?: string;
+  music?: MusicTrackData;
+  tags?: string[];
+  isFavorite?: boolean;
+}
+
+export interface UpdateMemoryInput {
+  title?: string;
+  desc?: string;
+  mood?: string;
+  location?: string;
+  date?: string;
+  transcript?: string;
+  emotion?: string;
+  musicUrl?: string;
+  music?: MusicTrackData;
+  tags?: string[];
+  isFavorite?: boolean;
 }
 
 export interface ImageUploadResult {
@@ -60,6 +113,60 @@ export interface ImageDimensions {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Mappers: Database Row <-> React Memory Object
+// ─────────────────────────────────────────────────────────────
+
+export function dbRecordToMemory(
+  record: MemoryRecord,
+  signedPhotoUrl?: string,
+  signedAudioUrl?: string
+): Memory {
+  return {
+    id: record.id,
+    type: record.type || 'text',
+    title: record.title || 'Untitled Moment',
+    desc: record.description || '',
+    mood: record.mood || 'joy',
+    location: record.location || undefined,
+    date: record.memory_date || record.created_at,
+    photoUrl: signedPhotoUrl || undefined,
+    audioUrl: signedAudioUrl || undefined,
+    musicUrl: record.music_url || undefined,
+    transcript: record.transcript || undefined,
+    emotion: record.emotion || undefined,
+    music: record.music_track ? {
+      song: record.music_track.song,
+      artist: record.music_track.artist,
+      albumArt: record.music_track.albumArt,
+    } : undefined,
+  };
+}
+
+export function memoryInputToDbPayload(
+  input: CreateMemoryInput | UpdateMemoryInput,
+  userId: string
+): Partial<MemoryRecord> {
+  const payload: Partial<MemoryRecord> = {
+    user_id: userId,
+  };
+
+  if ('type' in input && input.type) payload.type = input.type;
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.desc !== undefined) payload.description = input.desc;
+  if (input.mood !== undefined) payload.mood = input.mood;
+  if (input.location !== undefined) payload.location = input.location || null;
+  if (input.date !== undefined) payload.memory_date = new Date(input.date).toISOString();
+  if (input.transcript !== undefined) payload.transcript = input.transcript || null;
+  if (input.emotion !== undefined) payload.emotion = input.emotion || null;
+  if (input.musicUrl !== undefined) payload.music_url = input.musicUrl || null;
+  if (input.music !== undefined) payload.music_track = input.music || null;
+  if (input.tags !== undefined) payload.tags = input.tags;
+  if (input.isFavorite !== undefined) payload.is_favorite = input.isFavorite;
+
+  return payload;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Custom Error Hierarchy
 // ─────────────────────────────────────────────────────────────
 
@@ -78,7 +185,7 @@ export class ValidationError extends StorageError {
 }
 
 export class AuthenticationRequiredError extends StorageError {
-  constructor(message: string = 'User authentication is required to access memory storage.') {
+  constructor(message: string = 'Please sign in with Google to save memories.') {
     super(message, 'AUTH_REQUIRED');
     this.name = 'AuthenticationRequiredError';
   }

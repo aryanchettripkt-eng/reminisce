@@ -4,9 +4,11 @@ import Vault from './components/Vault';
 import Taskbar from './components/Taskbar';
 import ExtraPages from './components/ExtraPages';
 import { Memory, Album, DayReaction, sortMemoriesIntoAlbums } from './lib/groq';
+import { AuthProvider, useAuth, listUserMemories, deleteMemory as supabaseDeleteMemory } from './services/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function App() {
+function ReminiqApp() {
+  const { user, isConfigured } = useAuth();
   const [view, setView] = useState<'landing' | 'vault'>('landing');
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -63,7 +65,7 @@ export default function App() {
     }
   };
 
-  // Seed initial memories
+  // Seed initial sample memories & hydrate from Supabase when authenticated
   useEffect(() => {
     const initialMemories: Memory[] = [
       {
@@ -147,19 +149,43 @@ export default function App() {
         photoUrl: 'https://picsum.photos/seed/piano/800/600'
       }
     ];
-    setMemories(initialMemories);
-  }, []);
+
+    if (user && isConfigured) {
+      listUserMemories()
+        .then((dbMemories) => {
+          if (dbMemories.length > 0) {
+            setMemories(dbMemories);
+          } else {
+            setMemories([]);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load user memories from Supabase:', err);
+          setMemories(initialMemories);
+        });
+    } else {
+      setMemories(initialMemories);
+    }
+  }, [user, isConfigured]);
 
   const addMemory = (memory: Memory) => {
     setMemories(prev => [memory, ...prev]);
   };
 
-  const deleteMemory = (memoryId: string) => {
+  const deleteMemory = async (memoryId: string) => {
     setMemories(prev => prev.filter(m => m.id !== memoryId));
     setAlbums(prev => prev.map(a => ({
       ...a,
       memoryIds: a.memoryIds.filter(id => id !== memoryId)
     })));
+
+    if (user && isConfigured) {
+      try {
+        await supabaseDeleteMemory(memoryId);
+      } catch (err: any) {
+        console.error('Failed to delete memory from Supabase:', err);
+      }
+    }
   };
 
   const updateAlbums = (newAlbums: Album[]) => {
@@ -220,6 +246,26 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Check for OAuth error redirected in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+      const queryParams = url.searchParams;
+
+      const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+      const errorCode = hashParams.get('error') || queryParams.get('error');
+
+      if (errorDescription || errorCode) {
+        setToast({
+          message: decodeURIComponent(errorDescription || errorCode || 'Authentication failed. Please try again.').replace(/\+/g, ' '),
+          type: 'error',
+        });
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   return (
     <main className="min-h-screen">
@@ -305,6 +351,14 @@ export default function App() {
         )}
       </AnimatePresence>
     </main>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ReminiqApp />
+    </AuthProvider>
   );
 }
 

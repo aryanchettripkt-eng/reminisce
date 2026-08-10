@@ -11,6 +11,7 @@ dotenv.config();
 
 import { isSupabaseConfigured, getSupabaseClient, getSupabaseConfig } from './client';
 import { STORAGE_CONFIG } from './config';
+import { getCurrentUser, getCurrentSession } from './auth';
 
 const colors = {
   green: (t: string) => `\x1b[32m${t}\x1b[0m`,
@@ -32,8 +33,18 @@ async function runLiveIntegrationTests() {
   const config = getSupabaseConfig();
   console.log(colors.cyan('Connecting to Supabase at:'), config.url);
 
-  // 1. Check database table `public.memories`
-  console.log(colors.cyan('\n1. Checking Postgres "memories" table...'));
+  // 1. Check Auth Configuration & Current Session
+  console.log(colors.cyan('\n1. Checking Supabase Auth module...'));
+  const user = await getCurrentUser();
+  const session = await getCurrentSession();
+  if (user && session) {
+    console.log(`  ${colors.green('✓')} Active session detected: User UUID ${user.id} (${user.email || 'Google User'})`);
+  } else {
+    console.log(`  ${colors.green('✓')} Supabase Auth client initialized (Ready for Google OAuth login).`);
+  }
+
+  // 2. Check database table `public.memories`
+  console.log(colors.cyan('\n2. Checking Postgres "memories" table...'));
   const { data: tableData, error: tableErr } = await client.from('memories').select('id').limit(1);
 
   if (tableErr) {
@@ -42,17 +53,16 @@ async function runLiveIntegrationTests() {
     console.log(`  ${colors.green('✓')} "memories" table is accessible and RLS is active.`);
   }
 
-  // 2. Check Storage bucket read access
-  console.log(colors.cyan('\n2. Testing Storage bucket "memory-images"...'));
+  // 3. Check Storage bucket read access
+  console.log(colors.cyan('\n3. Testing Storage bucket "memory-images"...'));
   
-  // Try listing files in memory-images (should return empty array or permission denied by RLS, not "Bucket not found")
   const { data: filesData, error: filesErr } = await client.storage.from(STORAGE_CONFIG.BUCKET_NAME).list('', { limit: 1 });
 
   if (filesErr) {
     if (filesErr.message.toLowerCase().includes('not found')) {
       console.log(colors.yellow(`  ℹ️  Storage API: Bucket not found in list. Checking RLS policy...`));
     } else {
-      console.log(`  ${colors.green('✓')} Bucket "${STORAGE_CONFIG.BUCKET_NAME}" exists! Storage RLS correctly denied anonymous listing: (${filesErr.message})`);
+      console.log(`  ${colors.green('✓')} Bucket "${STORAGE_CONFIG.BUCKET_NAME}" exists! Storage RLS correctly enforced: (${filesErr.message})`);
     }
   } else {
     console.log(`  ${colors.green('✓')} Bucket "${STORAGE_CONFIG.BUCKET_NAME}" is accessible!`);

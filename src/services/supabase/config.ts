@@ -8,15 +8,29 @@ export const STORAGE_CONFIG = {
   // Storage bucket identifier for personal image memories
   BUCKET_NAME: 'memory-images',
 
+  // Storage bucket identifier for personal audio memories
+  AUDIO_BUCKET_NAME: 'memory-audio',
+
   // Configurable Maximum file size limit: 20 MB default
   MAX_FILE_SIZE_BYTES: 20 * 1024 * 1024,
 
-  // Allowed MIME types
+  // Allowed Image MIME types
   ALLOWED_MIME_TYPES: [
     'image/jpeg',
     'image/png',
     'image/webp',
     'image/gif',
+  ] as const,
+
+  // Allowed Audio MIME types
+  ALLOWED_AUDIO_MIME_TYPES: [
+    'audio/wav',
+    'audio/webm',
+    'audio/mpeg',
+    'audio/ogg',
+    'audio/mp4',
+    'audio/x-m4a',
+    'audio/aac',
   ] as const,
 
   // Default signed URL validity duration in seconds (1 hour)
@@ -31,6 +45,13 @@ export const MIME_TO_EXTENSION: Record<string, string> = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/gif': 'gif',
+  'audio/wav': 'wav',
+  'audio/webm': 'webm',
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/aac': 'aac',
 };
 
 export const EXTENSION_TO_MIME: Record<string, string> = {
@@ -39,6 +60,12 @@ export const EXTENSION_TO_MIME: Record<string, string> = {
   png: 'image/png',
   webp: 'image/webp',
   gif: 'image/gif',
+  wav: 'audio/wav',
+  webm: 'audio/webm',
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
 };
 
 /**

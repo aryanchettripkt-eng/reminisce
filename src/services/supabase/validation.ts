@@ -79,6 +79,70 @@ export function validateImageFile(
 }
 
 /**
+ * Validate an audio file or blob before uploading to Supabase Storage
+ */
+export function validateAudioFile(
+  file: File | Blob,
+  customOptions?: {
+    maxSizeBytes?: number;
+    allowedMimeTypes?: readonly string[];
+    filename?: string;
+  }
+): FileValidationResult {
+  const maxSizeBytes = customOptions?.maxSizeBytes ?? STORAGE_CONFIG.MAX_FILE_SIZE_BYTES;
+  const allowedMimeTypes = customOptions?.allowedMimeTypes ?? STORAGE_CONFIG.ALLOWED_AUDIO_MIME_TYPES;
+
+  if (!file) {
+    throw new ValidationError('No audio file provided for upload.');
+  }
+
+  const size = file.size;
+  let mimeType = file.type?.toLowerCase() || '';
+  const originalFilename = (file instanceof File ? file.name : customOptions?.filename) || '';
+
+  // Normalize codecs parameter e.g. audio/webm;codecs=opus -> audio/webm
+  if (mimeType.includes(';')) {
+    mimeType = mimeType.split(';')[0].trim();
+  }
+
+  if (!mimeType && originalFilename) {
+    const ext = originalFilename.split('.').pop()?.toLowerCase() || '';
+    mimeType = EXTENSION_TO_MIME[ext] || '';
+  }
+
+  // Fallback for MediaRecorder output where type might be audio/wav or audio/webm
+  if (!mimeType) {
+    mimeType = 'audio/wav';
+  }
+
+  if (!allowedMimeTypes.includes(mimeType as any)) {
+    const allowedList = allowedMimeTypes.join(', ');
+    throw new ValidationError(
+      `Unsupported audio format: "${mimeType || 'unknown'}". Allowed formats: ${allowedList}`
+    );
+  }
+
+  if (size > maxSizeBytes) {
+    throw new ValidationError(
+      `Audio file size (${formatBytes(size)}) exceeds maximum allowed limit of ${formatBytes(maxSizeBytes)}.`
+    );
+  }
+
+  if (size === 0) {
+    throw new ValidationError('The audio recording is empty (0 bytes).');
+  }
+
+  const extension = MIME_TO_EXTENSION[mimeType] || 'wav';
+
+  return {
+    isValid: true,
+    extension,
+    mimeType,
+    size,
+  };
+}
+
+/**
  * Read image pixel dimensions (width & height) in browser environment
  */
 export async function getImageDimensions(

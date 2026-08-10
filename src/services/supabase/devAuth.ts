@@ -1,15 +1,11 @@
 import { getSupabaseClient } from './client';
 
 /**
- * Development Authentication Helper
+ * TEST-ONLY Authentication Helper
  *
- * Provides a seamless authenticated session for localhost development
- * until full frontend authentication UI is implemented.
- *
- * Ensures a valid user UUID exists in auth.users so that:
- * 1. Postgres foreign key (memories.user_id -> auth.users.id) is satisfied.
- * 2. Supabase Storage RLS (storage.foldername(name)[1] = auth.uid()) evaluates to true.
- * 3. Memories and images are genuinely persisted to your live Supabase project.
+ * NOTE: This helper is STRICTLY for offline CLI test runners and multi-user RLS integration tests.
+ * It is completely decoupled and never invoked by the Reminiq production application runtime.
+ * Production application authentication is exclusively handled by real Supabase Google OAuth.
  */
 export async function ensureAuthenticatedUser(): Promise<string> {
   const client = getSupabaseClient();
