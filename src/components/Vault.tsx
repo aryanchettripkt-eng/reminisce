@@ -29,6 +29,17 @@ import {
 import { Memory, Album, DayReaction, sortMemoriesIntoAlbums } from '../lib/groq';
 import { LOCAL_TRACKS, Track } from '../lib/music';
 import { createMemory, uploadMemoryImage, isSupabaseConfigured, useAuth, runGooglePhotosImportFlow } from '../services/supabase';
+import { 
+  getSpotifyPlaylists, 
+  getPlaylistItems, 
+  importSpotifyTracks, 
+  searchSpotifyTracks, 
+  connectSpotify as connectSpotifyService, 
+  disconnectSpotify as disconnectSpotifyService, 
+  isSpotifyConnected,
+  getSpotifyProfile 
+} from '../services/supabase/spotifyService';
+import { SpotifyPlaylistSummary, SpotifyTrackItem } from '../types/storage';
 import AlbumDetail from './AlbumDetail';
 import CalendarView from './CalendarView';
 import MusicPlayer from './MusicPlayer';
@@ -97,7 +108,20 @@ export default function Vault({
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   // Spotify state
-  const [spotifyTracks, setSpotifyTracks] = useState<any[]>([]);
+  const [spotifyConnected, setSpotifyConnected] = useState(isSpotifyConnected());
+  const [spotifyProfile, setSpotifyProfile] = useState<{ id: string; displayName?: string; images?: any[] } | null>(null);
+  const [spotifyMode, setSpotifyMode] = useState<'playlists' | 'search'>('playlists');
+  const [spotifyPlaylists, setSpotifyPlaylists] = useState<SpotifyPlaylistSummary[]>([]);
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylistSummary | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<SpotifyTrackItem[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = useState(false);
+  const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
+  const [destinationAlbumId, setDestinationAlbumId] = useState<string>('');
+  const [isImportingSpotify, setIsImportingSpotify] = useState(false);
+  const [spotifyImportStatus, setSpotifyImportStatus] = useState<string | null>(null);
+  const [selectedSpotifyTrack, setSelectedSpotifyTrack] = useState<SpotifyTrackItem | null>(null);
+  const [spotifyTracks, setSpotifyTracks] = useState<SpotifyTrackItem[]>([]);
   const [isSearchingSpotify, setIsSearchingSpotify] = useState(false);
   const [spotifySearchQuery, setSpotifySearchQuery] = useState('');
   const [musicSource, setMusicSource] = useState<'local' | 'spotify'>('local');
@@ -113,6 +137,7 @@ export default function Vault({
   const cameraStateRef = useRef({ theta: 0, phi: 0.3, radius: 14, targetTheta: 0, targetPhi: 0.3 });
   const isDraggingRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+  const animIdRef = useRef<number | null>(null);
 
   // Form state
   const [newType, setNewType] = useState<Memory['type']>('photo');
@@ -174,7 +199,6 @@ export default function Vault({
     }
   };
 
-
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -235,21 +259,130 @@ export default function Vault({
     });
   }, [memories, sortBy]);
 
+  const loadSpotifyData = async () => {
+    if (!isSpotifyConnected()) return;
+    setSpotifyConnected(true);
+    try {
+      getSpotifyProfile().then(setSpotifyProfile).catch(() => {});
+      setIsLoadingPlaylists(true);
+      const res = await getSpotifyPlaylists();
+      setSpotifyPlaylists(res.playlists);
+    } catch (err: any) {
+      if (err.message === 'SPOTIFY_AUTH_REQUIRED') {
+        setSpotifyConnected(false);
+      }
+    } finally {
+      setIsLoadingPlaylists(false);
+    }
+  };
+
   useEffect(() => {
-    if (sceneRef.current) applyMoodLighting(currentMood);
-  }, [currentMood]);
+    if (musicSource === 'spotify' && isSpotifyConnected()) {
+      loadSpotifyData();
+    }
+  }, [musicSource]);
+
+  const handleConnectSpotify = async () => {
+    try {
+      await connectSpotifyService();
+      setSpotifyConnected(true);
+      await loadSpotifyData();
+    } catch (err: any) {
+      console.error('Spotify connect error:', err);
+      if (!err.message?.includes('closed') && !err.message?.includes('blocked')) {
+        alert(err.message || 'Failed to connect Spotify.');
+      }
+    }
+  };
+
+  const handleDisconnectSpotify = async () => {
+    await disconnectSpotifyService();
+    setSpotifyConnected(false);
+    setSpotifyProfile(null);
+    setSpotifyPlaylists([]);
+    setSelectedPlaylist(null);
+    setPlaylistTracks([]);
+    setSelectedTrackIds(new Set());
+  };
+
+  const handleSelectPlaylist = async (playlist: SpotifyPlaylistSummary) => {
+    setSelectedPlaylist(playlist);
+    setIsLoadingTracks(true);
+    setSelectedTrackIds(new Set());
+    try {
+      const res = await getPlaylistItems(playlist.id);
+      setPlaylistTracks(res.tracks);
+      if (res.unsupported.length > 0) {
+        console.info(`Skipped ${res.unsupported.length} non-music items from playlist.`);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to load playlist items.');
+    } finally {
+      setIsLoadingTracks(false);
+    }
+  };
+
+  const handleToggleTrackSelection = (trackId: string) => {
+    setSelectedTrackIds(prev => {
+      const next = new Set(prev);
+      if (next.has(trackId)) {
+        next.delete(trackId);
+      } else {
+        next.add(trackId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllTracks = () => {
+    if (selectedTrackIds.size === playlistTracks.length) {
+      setSelectedTrackIds(new Set());
+    } else {
+      setSelectedTrackIds(new Set(playlistTracks.map(t => t.id)));
+    }
+  };
+
+  const handleBatchImportSpotifyTracks = async () => {
+    const selectedTracks = playlistTracks.filter(t => selectedTrackIds.has(t.id));
+    if (selectedTracks.length === 0) {
+      alert('Please select at least one track to import.');
+      return;
+    }
+
+    setIsImportingSpotify(true);
+    setSpotifyImportStatus(`Importing ${selectedTracks.length} track${selectedTracks.length > 1 ? 's' : ''}...`);
+    try {
+      const result = await importSpotifyTracks(selectedTracks, destinationAlbumId || undefined);
+      if (result.imported.length > 0) {
+        for (const mem of result.imported) {
+          onAddMemory(mem);
+        }
+        alert(`Successfully imported ${result.imported.length} track${result.imported.length > 1 ? 's' : ''} from Spotify!`);
+        onSetIsAddModalOpen(false);
+        setSelectedTrackIds(new Set());
+        setSelectedPlaylist(null);
+      } else if (result.failed.length > 0) {
+        alert(`Import failed: ${result.failed[0].error}`);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to import Spotify tracks.');
+    } finally {
+      setIsImportingSpotify(false);
+      setSpotifyImportStatus(null);
+    }
+  };
 
   const searchSpotify = async (q: string) => {
-    if (!spotifyToken || !q) return;
+    if (!q.trim()) return;
     setIsSearchingSpotify(true);
     try {
-      const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(q)}`, {
-        headers: { Authorization: `Bearer ${spotifyToken}` }
-      });
-      const data = await response.json();
-      setSpotifyTracks(data.tracks?.items || []);
-    } catch (error) {
+      const data = await searchSpotifyTracks(q);
+      setSpotifyTracks(data.tracks || []);
+    } catch (error: any) {
       console.error('Spotify Search Error:', error);
+      if (error.message === 'SPOTIFY_AUTH_REQUIRED') {
+        setSpotifyConnected(false);
+      }
     } finally {
       setIsSearchingSpotify(false);
     }
@@ -919,7 +1052,6 @@ export default function Vault({
 
     rendererRef.current.render(sceneRef.current, cameraRef.current);
   };
-  const animIdRef = useRef<number>(0);
 
   // Handle prefilled date from calendar
   useEffect(() => {
@@ -955,21 +1087,42 @@ export default function Vault({
     const mockTranscript = newType === 'voice' ? "This is a mock transcription of your beautiful voice memory..." : undefined;
 
     try {
+      let musicData: any = undefined;
+      if (newType === 'music') {
+        if (musicSource === 'spotify' && selectedSpotifyTrack) {
+          musicData = {
+            song: newSong || selectedSpotifyTrack.name,
+            artist: newArtist || selectedSpotifyTrack.artists,
+            album: selectedSpotifyTrack.album,
+            albumArt: selectedSpotifyTrack.albumArt || photoPreview,
+            provider: 'spotify',
+            providerTrackId: selectedSpotifyTrack.id,
+            uri: selectedSpotifyTrack.uri,
+            externalUrl: selectedSpotifyTrack.externalUrl,
+            durationMs: selectedSpotifyTrack.durationMs,
+          };
+        } else if (newSong) {
+          musicData = {
+            song: newSong,
+            artist: newArtist,
+            albumArt: photoPreview || `https://picsum.photos/seed/${newSong}/300/300`,
+            provider: 'local',
+          };
+        }
+      }
+
       const createInput = {
         type: newType,
-        title: newTitle || 'Untitled Moment',
+        source: (newType === 'music' && musicSource === 'spotify' ? 'spotify' : 'upload') as 'upload' | 'spotify',
+        title: newTitle || (newType === 'music' && newSong ? `${newSong} • ${newArtist}` : 'Untitled Moment'),
         desc: newDesc,
         mood: newMood,
         location: newLocation,
         date: new Date(newDate).toISOString(),
         transcript: mockTranscript,
         emotion: mockEmotion,
-        musicUrl: newType === 'music' ? (musicSource === 'local' ? selectedLocalTrack?.url : undefined) : undefined,
-        music: newSong ? {
-          song: newSong,
-          artist: newArtist,
-          albumArt: photoPreview || `https://picsum.photos/seed/${newSong}/300/300`
-        } : undefined,
+        musicUrl: newType === 'music' ? (musicSource === 'local' ? selectedLocalTrack?.url : selectedSpotifyTrack?.externalUrl) : undefined,
+        music: musicData,
       };
 
       const result = await createMemory(createInput, {
@@ -1258,58 +1411,246 @@ export default function Vault({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="font-hand text-[10px] text-brown/50 uppercase tracking-widest flex items-center justify-between">
-                        <span>Spotify Search</span>
-                        {!spotifyToken ? (
-                          <button 
-                            onClick={onConnectSpotify}
-                            className="text-[10px] text-green-600 hover:underline flex items-center gap-1"
+                    <div className="space-y-4">
+                      {/* Connection Header */}
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-black/5 border border-light-brown/10">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`w-2 h-2 rounded-full ${spotifyConnected ? 'bg-[#1DB954] animate-pulse' : 'bg-brown/30'}`} />
+                          <span className="font-hand text-xs text-dark-brown">
+                            {spotifyConnected
+                              ? `Connected as ${spotifyProfile?.displayName || 'Spotify User'}`
+                              : 'Spotify Music Library'}
+                          </span>
+                        </div>
+                        {spotifyConnected ? (
+                          <button
+                            onClick={handleDisconnectSpotify}
+                            className="font-hand text-[10px] text-brown/40 hover:text-red-500 uppercase tracking-widest transition-colors"
                           >
-                            Connect Spotify
+                            Disconnect
                           </button>
                         ) : (
-                          <span className="text-[10px] text-green-600">Connected</span>
+                          <button
+                            onClick={handleConnectSpotify}
+                            className="px-3 py-1 bg-[#1DB954] hover:bg-[#1ed760] text-black font-hand text-xs uppercase tracking-wider rounded-full shadow-sm transition-all flex items-center gap-1.5"
+                          >
+                            <Music size={12} /> Connect Spotify
+                          </button>
                         )}
                       </div>
-                      
-                      {spotifyToken && (
+
+                      {spotifyConnected && (
                         <div className="space-y-3">
+                          {/* Sub-modes: Playlists vs Search */}
                           <div className="flex gap-2">
-                            <input 
-                              value={spotifySearchQuery}
-                              onChange={(e) => setSpotifySearchQuery(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && searchSpotify(spotifySearchQuery)}
-                              className="flex-1 bg-parchment/20 border border-light-brown/15 rounded-[3px] px-3 py-2 text-ink font-hand outline-none"
-                              placeholder="Search for a song..."
-                            />
-                            <button 
-                              onClick={() => searchSpotify(spotifySearchQuery)}
-                              className="bg-dark-brown text-cream px-4 rounded-[3px] font-hand text-sm"
+                            <button
+                              onClick={() => { setSpotifyMode('playlists'); setSelectedPlaylist(null); }}
+                              className={`flex-1 py-1.5 rounded-lg font-hand text-xs transition-all ${spotifyMode === 'playlists' ? 'bg-moss text-cream shadow-sm' : 'bg-black/5 text-brown/60 hover:bg-black/10'}`}
                             >
-                              Search
+                              Browse Playlists
+                            </button>
+                            <button
+                              onClick={() => setSpotifyMode('search')}
+                              className={`flex-1 py-1.5 rounded-lg font-hand text-xs transition-all ${spotifyMode === 'search' ? 'bg-moss text-cream shadow-sm' : 'bg-black/5 text-brown/60 hover:bg-black/10'}`}
+                            >
+                              Search Tracks
                             </button>
                           </div>
-                          
-                          {spotifyTracks.length > 0 && (
-                            <div className="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                              {spotifyTracks.map(track => (
-                                <button 
-                                  key={track.id}
-                                  onClick={() => {
-                                    setNewSong(track.name);
-                                    setNewArtist(track.artists[0].name);
-                                    setPhotoPreview(track.album.images[0].url);
-                                  }}
-                                  className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${newSong === track.name ? 'bg-dusty-rose/20 border border-dusty-rose/30' : 'bg-black/5 hover:bg-black/10'}`}
-                                >
-                                  <img src={track.album.images[2].url} className="w-10 h-10 rounded shadow-sm" />
-                                  <div className="text-left">
-                                    <div className="text-sm font-hand text-ink truncate max-w-[200px]">{track.name}</div>
-                                    <div className="text-[10px] text-brown/50 font-hand">{track.artists[0].name}</div>
+
+                          {/* Playlists View */}
+                          {spotifyMode === 'playlists' && (
+                            <div className="space-y-3">
+                              {!selectedPlaylist ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-hand text-[10px] text-brown/50 uppercase tracking-widest">
+                                      Your Playlists ({spotifyPlaylists.length})
+                                    </span>
+                                    <button
+                                      onClick={loadSpotifyData}
+                                      className="font-hand text-[10px] text-moss hover:underline"
+                                    >
+                                      Refresh
+                                    </button>
                                   </div>
+                                  {isLoadingPlaylists ? (
+                                    <div className="py-8 text-center font-hand text-xs text-brown/40 italic">
+                                      Loading your Spotify playlists...
+                                    </div>
+                                  ) : spotifyPlaylists.length === 0 ? (
+                                    <div className="py-8 text-center font-hand text-xs text-brown/40 italic">
+                                      No playlists found in your Spotify account.
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                                      {spotifyPlaylists.map(pl => (
+                                        <button
+                                          key={pl.id}
+                                          onClick={() => handleSelectPlaylist(pl)}
+                                          className="flex items-center gap-2.5 p-2 rounded-xl bg-black/5 hover:bg-black/10 text-left transition-all group"
+                                        >
+                                          {pl.images?.[0]?.url ? (
+                                            <img src={pl.images[0].url} className="w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" />
+                                          ) : (
+                                            <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                                              <Music size={16} className="text-white/30" />
+                                            </div>
+                                          )}
+                                          <div className="min-w-0 flex-1">
+                                            <div className="text-[11px] font-hand text-ink truncate group-hover:text-dark-brown">{pl.name}</div>
+                                            <div className="text-[9px] text-brown/50 font-hand truncate">{pl.tracksCount} tracks</div>
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {/* Selected Playlist Header */}
+                                  <div className="flex items-center justify-between pb-2 border-b border-light-brown/10">
+                                    <button
+                                      onClick={() => setSelectedPlaylist(null)}
+                                      className="flex items-center gap-1 font-hand text-xs text-moss hover:underline"
+                                    >
+                                      <ChevronLeft size={14} /> Back to playlists
+                                    </button>
+                                    <span className="font-hand text-[10px] text-brown/50 truncate max-w-[150px]">
+                                      {selectedPlaylist.name}
+                                    </span>
+                                  </div>
+
+                                  {/* Batch controls */}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <button
+                                      onClick={handleSelectAllTracks}
+                                      className="font-hand text-[10px] text-brown/60 hover:text-dark-brown"
+                                    >
+                                      {selectedTrackIds.size === playlistTracks.length ? 'Deselect All' : `Select All (${selectedTrackIds.size}/${playlistTracks.length})`}
+                                    </button>
+
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={destinationAlbumId}
+                                        onChange={(e) => setDestinationAlbumId(e.target.value)}
+                                        className="font-hand text-[10px] bg-parchment/40 border border-light-brown/20 rounded px-2 py-1 text-ink outline-none"
+                                      >
+                                        <option value="">No Album (Vault Only)</option>
+                                        {albums.map(alb => (
+                                          <option key={alb.id} value={alb.id}>{alb.title}</option>
+                                        ))}
+                                      </select>
+
+                                      <button
+                                        onClick={handleBatchImportSpotifyTracks}
+                                        disabled={selectedTrackIds.size === 0 || isImportingSpotify}
+                                        className="px-3 py-1 bg-moss hover:bg-dark-brown disabled:opacity-40 text-cream font-hand text-[11px] uppercase tracking-wider rounded transition-all"
+                                      >
+                                        {isImportingSpotify ? (spotifyImportStatus || 'Importing...') : `Import (${selectedTrackIds.size})`}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Playlist Tracks List */}
+                                  {isLoadingTracks ? (
+                                    <div className="py-8 text-center font-hand text-xs text-brown/40 italic">
+                                      Loading tracks from playlist...
+                                    </div>
+                                  ) : playlistTracks.length === 0 ? (
+                                    <div className="py-8 text-center font-hand text-xs text-brown/40 italic">
+                                      No tracks found in this playlist.
+                                    </div>
+                                  ) : (
+                                    <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                      {playlistTracks.map(track => {
+                                        const isChecked = selectedTrackIds.has(track.id);
+                                        return (
+                                          <div
+                                            key={track.id}
+                                            onClick={() => {
+                                              handleToggleTrackSelection(track.id);
+                                              setSelectedSpotifyTrack(track);
+                                              setNewSong(track.name);
+                                              setNewArtist(track.artists);
+                                              if (track.albumArt) setPhotoPreview(track.albumArt);
+                                            }}
+                                            className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all ${isChecked ? 'bg-moss/15 border border-moss/30' : 'bg-black/5 hover:bg-black/10'}`}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={() => {}}
+                                              className="w-3.5 h-3.5 accent-moss rounded"
+                                            />
+                                            {track.albumArt ? (
+                                              <img src={track.albumArt} className="w-8 h-8 rounded shadow-sm object-cover flex-shrink-0" />
+                                            ) : (
+                                              <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                                                <Music size={12} className="text-white/30" />
+                                              </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                              <div className="text-[11px] font-hand text-ink truncate">{track.name}</div>
+                                              <div className="text-[9px] text-brown/50 font-hand truncate">{track.artists} • {track.album}</div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Search Tracks View */}
+                          {spotifyMode === 'search' && (
+                            <div className="space-y-3">
+                              <div className="flex gap-2">
+                                <input
+                                  value={spotifySearchQuery}
+                                  onChange={(e) => setSpotifySearchQuery(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && searchSpotify(spotifySearchQuery)}
+                                  className="flex-1 bg-parchment/20 border border-light-brown/15 rounded-[3px] px-3 py-2 text-ink font-hand text-sm outline-none"
+                                  placeholder="Search tracks on Spotify..."
+                                />
+                                <button
+                                  onClick={() => searchSpotify(spotifySearchQuery)}
+                                  disabled={isSearchingSpotify}
+                                  className="bg-dark-brown text-cream px-4 rounded-[3px] font-hand text-xs uppercase tracking-wider"
+                                >
+                                  {isSearchingSpotify ? '...' : 'Search'}
                                 </button>
-                              ))}
+                              </div>
+
+                              {spotifyTracks.length > 0 && (
+                                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                  {spotifyTracks.map(track => (
+                                    <button
+                                      key={track.id}
+                                      onClick={() => {
+                                        setSelectedSpotifyTrack(track);
+                                        setNewSong(track.name);
+                                        setNewArtist(track.artists);
+                                        if (track.albumArt) setPhotoPreview(track.albumArt);
+                                      }}
+                                      className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all text-left ${selectedSpotifyTrack?.id === track.id ? 'bg-dusty-rose/20 border border-dusty-rose/30' : 'bg-black/5 hover:bg-black/10'}`}
+                                    >
+                                      {track.albumArt ? (
+                                        <img src={track.albumArt} className="w-8 h-8 rounded shadow-sm object-cover flex-shrink-0" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                                          <Music size={12} className="text-white/30" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-[11px] font-hand text-ink truncate">{track.name}</div>
+                                        <div className="text-[9px] text-brown/50 font-hand truncate">{track.artists} • {track.album}</div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1429,8 +1770,12 @@ export default function Vault({
                 <MusicPlayer 
                   song={selectedMemory.music.song}
                   artist={selectedMemory.music.artist}
+                  album={selectedMemory.music.album}
                   albumArt={selectedMemory.music.albumArt}
-                  audioUrl={selectedMemory.musicUrl}
+                  audioUrl={selectedMemory.audioUrl}
+                  externalUrl={selectedMemory.music.externalUrl || selectedMemory.musicUrl}
+                  uri={selectedMemory.music.uri}
+                  provider={selectedMemory.music.provider}
                   autoPlay={true}
                 />
               </div>

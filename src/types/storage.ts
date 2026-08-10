@@ -10,6 +10,12 @@ export interface MusicTrackData {
   song: string;
   artist: string;
   albumArt?: string;
+  album?: string;
+  provider?: 'spotify' | 'local' | string;
+  providerTrackId?: string;
+  uri?: string;
+  externalUrl?: string;
+  durationMs?: number;
 }
 
 export interface MemoryRecord {
@@ -43,7 +49,7 @@ export interface MemoryRecord {
   tags: string[];
   is_favorite: boolean;
   google_photos_media_id?: string | null;
-  source?: 'upload' | 'google_photos';
+  source?: 'upload' | 'google_photos' | 'spotify';
 
   created_at: string;
   updated_at: string;
@@ -80,7 +86,7 @@ export interface CreateMemoryInput {
   tags?: string[];
   isFavorite?: boolean;
   google_photos_media_id?: string | null;
-  source?: 'upload' | 'google_photos';
+  source?: 'upload' | 'google_photos' | 'spotify';
 }
 
 export interface UpdateMemoryInput {
@@ -96,7 +102,37 @@ export interface UpdateMemoryInput {
   tags?: string[];
   isFavorite?: boolean;
   google_photos_media_id?: string | null;
-  source?: 'upload' | 'google_photos';
+  source?: 'upload' | 'google_photos' | 'spotify';
+}
+
+export interface SpotifyPlaylistSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  images?: { url: string; height?: number; width?: number }[];
+  tracksCount: number;
+  ownerDisplayName?: string;
+  isCollaborative: boolean;
+  isPublic: boolean | null;
+}
+
+export interface SpotifyTrackItem {
+  id: string;
+  name: string;
+  artists: string;
+  album: string;
+  albumArt?: string;
+  uri: string;
+  externalUrl: string;
+  durationMs: number;
+  isPlayable?: boolean;
+}
+
+export interface SpotifyImportResult {
+  imported: Memory[];
+  duplicates: string[];
+  unsupported: string[];
+  failed: { id: string; error: string }[];
 }
 
 export interface ImageUploadResult {
@@ -168,6 +204,12 @@ export function dbRecordToMemory(
       song: record.music_track.song,
       artist: record.music_track.artist,
       albumArt: record.music_track.albumArt,
+      album: record.music_track.album,
+      provider: record.music_track.provider,
+      providerTrackId: record.music_track.providerTrackId,
+      uri: record.music_track.uri,
+      externalUrl: record.music_track.externalUrl,
+      durationMs: record.music_track.durationMs,
     } : undefined,
   };
 }

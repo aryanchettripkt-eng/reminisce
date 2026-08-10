@@ -301,8 +301,12 @@ export default function ExtraPages({
                   <MusicPlayer 
                     song={m.music!.song}
                     artist={m.music!.artist}
+                    album={m.music!.album}
                     albumArt={m.music!.albumArt}
-                    audioUrl={m.musicUrl}
+                    audioUrl={m.audioUrl}
+                    externalUrl={m.music!.externalUrl || m.musicUrl}
+                    uri={m.music!.uri}
+                    provider={m.music!.provider}
                   />
                   <div className="mt-4 font-hand text-sm text-brown/60 italic text-right">
                     — from "{m.title}"

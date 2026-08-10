@@ -17,7 +17,7 @@ const TICKET_STORAGE_KEY = 'reminiq_google_auth_ticket';
 
 function getSavedAuthTicket(): string | null {
   try {
-    return localStorage.getItem(TICKET_STORAGE_KEY) || sessionStorage.getItem(TICKET_STORAGE_KEY);
+    return sessionStorage.getItem(TICKET_STORAGE_KEY);
   } catch {
     return null;
   }
@@ -26,10 +26,8 @@ function getSavedAuthTicket(): string | null {
 function saveAuthTicket(ticket: string | null) {
   try {
     if (ticket) {
-      localStorage.setItem(TICKET_STORAGE_KEY, ticket);
       sessionStorage.setItem(TICKET_STORAGE_KEY, ticket);
     } else {
-      localStorage.removeItem(TICKET_STORAGE_KEY);
       sessionStorage.removeItem(TICKET_STORAGE_KEY);
     }
   } catch {}
@@ -218,68 +216,35 @@ export async function runGooglePhotosImportFlow(options?: {
 
       await new Promise<void>((resolve, reject) => {
         let authCompleted = false;
-        const initialTime = Date.now();
-
-        const cleanup = () => {
-          window.removeEventListener('message', handleAuthMessage);
-          window.removeEventListener('storage', handleStorageEvent);
-          clearInterval(checkInterval);
-        };
-
-        const onAuthDone = (ticket?: string) => {
-          if (authCompleted) return;
-          authCompleted = true;
-          if (ticket) {
-            saveAuthTicket(ticket);
-          }
-          cleanup();
-          resolve();
-        };
+        const popup = window.open(authUrl, 'google_photos_auth', 'width=600,height=700');
+        if (!popup) {
+          return reject(new Error('Popup blocked. Please allow popups to connect Google Photos.'));
+        }
 
         const handleAuthMessage = (event: MessageEvent) => {
           if (event.data?.type === 'GOOGLE_PHOTOS_AUTH_SUCCESS') {
-            onAuthDone(event.data?.authTicket);
-          }
-        };
-
-        const handleStorageEvent = (event: StorageEvent) => {
-          if (event.key === TICKET_STORAGE_KEY && event.newValue) {
-            onAuthDone(event.newValue);
-          }
-          if (event.key === 'reminiq_google_auth_success') {
-            const ticket = getSavedAuthTicket();
-            if (ticket) onAuthDone(ticket);
+            authCompleted = true;
+            if (event.data?.authTicket) {
+              saveAuthTicket(event.data.authTicket);
+            }
+            window.removeEventListener('message', handleAuthMessage);
+            resolve();
           }
         };
 
         window.addEventListener('message', handleAuthMessage);
-        window.addEventListener('storage', handleStorageEvent);
 
-        const popup = window.open(authUrl, 'google_photos_auth', 'width=600,height=700');
-        if (!popup) {
-          cleanup();
-          return reject(new Error('Popup blocked. Please allow popups to connect Google Photos.'));
-        }
-
-        const checkInterval = setInterval(() => {
-          // Check if ticket was written to localStorage by popup
-          const currentTicket = getSavedAuthTicket();
-          const authTimestamp = parseInt(localStorage.getItem('reminiq_google_auth_success') || '0', 10);
-          if (currentTicket && authTimestamp >= initialTime) {
-            onAuthDone(currentTicket);
-            return;
-          }
-
+        const checkClosed = setInterval(() => {
           if (isWindowClosed(popup)) {
-            cleanup();
-            const ticketAfterClose = getSavedAuthTicket();
-            if (!authCompleted && !ticketAfterClose) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', handleAuthMessage);
+            if (!authCompleted && !getSavedAuthTicket()) {
               reject(new Error('Google Photos authorization was not completed. Please grant permissions in the Google window and try again.'));
             } else {
               resolve();
             }
           }
-        }, 400);
+        }, 800);
       });
 
       // Try creating session again after auth

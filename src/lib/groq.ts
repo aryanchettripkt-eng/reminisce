@@ -142,6 +142,12 @@ export interface Memory {
     song: string;
     artist: string;
     albumArt?: string;
+    album?: string;
+    provider?: string;
+    providerTrackId?: string;
+    uri?: string;
+    externalUrl?: string;
+    durationMs?: number;
   };
 }
 
