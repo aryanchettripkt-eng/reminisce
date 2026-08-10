@@ -218,6 +218,9 @@ export default function Vault({
     if (!canvasRef.current) return;
     initThree();
     return () => {
+      if (animIdRef.current) {
+        cancelAnimationFrame(animIdRef.current);
+      }
       if (rendererRef.current) {
         rendererRef.current.dispose();
       }
@@ -280,9 +283,9 @@ export default function Vault({
     cameraRef.current = camera;
     updateCameraPosition();
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current!, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current!, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -661,10 +664,10 @@ export default function Vault({
     shade.position.set(-5.5, -1.85, 0.5);
     scene.add(shade);
 
-    // Lamp point light — strong warm amber glow
+    // Lamp point light — strong warm amber glow (shadows handled by directional light)
     const lampLight = new THREE.PointLight(0xffaa40, 8.0, 18);
     lampLight.position.set(-5.5, -2.0, 0.5);
-    lampLight.castShadow = true;
+    lampLight.castShadow = false;
     scene.add(lampLight);
     lampLightRef.current = lampLight;
 
@@ -793,7 +796,28 @@ export default function Vault({
 
   const rebuildMemories = () => {
     if (!sceneRef.current) return;
-    memoryObjectsRef.current.forEach(obj => sceneRef.current?.remove(obj));
+    
+    // Dispose previous GPU geometries, materials and textures to prevent memory leaks
+    memoryObjectsRef.current.forEach(obj => {
+      obj.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (mesh.geometry) mesh.geometry.dispose();
+          if (mesh.material) {
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach((m) => {
+                if ((m as any).map) (m as any).map.dispose();
+                m.dispose();
+              });
+            } else {
+              if ((mesh.material as any).map) (mesh.material as any).map.dispose();
+              mesh.material.dispose();
+            }
+          }
+        }
+      });
+      sceneRef.current?.remove(obj);
+    });
     memoryObjectsRef.current = [];
 
     sortedMemories.forEach((mem, i) => {
