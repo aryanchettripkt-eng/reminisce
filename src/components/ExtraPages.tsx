@@ -7,6 +7,8 @@ import AlbumDetail from './AlbumDetail';
 import MusicPlayer from './MusicPlayer';
 import TimelineOverlay from './TimelineOverlay';
 import InteractiveScrapbook from './InteractiveScrapbook';
+import VinylVault from './VinylVault';
+import MonthlyFolders from './MonthlyFolders';
 
 interface ExtraPagesProps {
   activeOverlay: string | null;
@@ -22,6 +24,8 @@ interface ExtraPagesProps {
   onSortAlbums: () => void;
   isSorting: boolean;
   onAddMemoryAtDate: (date: string) => void;
+  spotifyToken?: string | null;
+  onConnectSpotify?: () => void;
 }
 
 export default function ExtraPages({ 
@@ -37,7 +41,9 @@ export default function ExtraPages({
   onUpdateDayReaction,
   onSortAlbums,
   isSorting,
-  onAddMemoryAtDate
+  onAddMemoryAtDate,
+  spotifyToken,
+  onConnectSpotify
 }: ExtraPagesProps) {
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [editingAlbumId, setEditingAlbumId] = useState<string | null>(null);
@@ -275,44 +281,20 @@ export default function ExtraPages({
 
         {activeOverlay === 'timeline' && <TimelineOverlay memories={memories} scrollRef={scrollRef} />}
 
+        {(activeOverlay === 'vinyl' || activeOverlay === 'music') && (
+          <VinylVault 
+            memories={memories} 
+            spotifyToken={spotifyToken || null} 
+            onConnectSpotify={onConnectSpotify || (() => {})} 
+          />
+        )}
 
-
-        {activeOverlay === 'music' && (
-          <div className="max-w-2xl mx-auto space-y-12">
-            <div className="text-center">
-              <h2 className="font-serif text-4xl text-dark-brown italic">The Soundtrack of Your Life</h2>
-              <p className="font-hand text-lg text-brown/50 italic mt-2">Melodies tied to your most precious moments.</p>
-            </div>
-            
-            <div className="space-y-6">
-              {memories.filter(m => m.music).map((m, i) => (
-                <motion.div 
-                  key={m.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-parchment/40 p-6 rounded-2xl border border-light-brown/10"
-                >
-                  <MusicPlayer 
-                    song={m.music!.song}
-                    artist={m.music!.artist}
-                    albumArt={m.music!.albumArt}
-                    audioUrl={m.musicUrl}
-                  />
-                  <div className="mt-4 font-hand text-sm text-brown/60 italic text-right">
-                    — from "{m.title}"
-                  </div>
-                </motion.div>
-              ))}
-              
-              {memories.filter(m => m.music).length === 0 && (
-                <div className="text-center py-20 text-brown/30">
-                  <Music size={64} className="mx-auto mb-4 opacity-20" />
-                  <p className="font-hand text-2xl italic">No music memories yet. Add a song to your next entry!</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {activeOverlay === 'folders' && (
+          <MonthlyFolders 
+            memories={memories} 
+            onAddMemoryAtDate={onAddMemoryAtDate} 
+            onDeleteMemory={onDeleteMemory} 
+          />
         )}
       </div>
 

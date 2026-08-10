@@ -284,6 +284,8 @@ export default function App() {
             onSortAlbums={handleSortIntoAlbums}
             isSorting={isSorting}
             onAddMemoryAtDate={handleAddMemoryAtDate}
+            spotifyToken={spotifyToken}
+            onConnectSpotify={connectSpotify}
           />
         )}
       </AnimatePresence>
