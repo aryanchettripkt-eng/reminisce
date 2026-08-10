@@ -2,7 +2,7 @@
  * Reminiq - Supabase Memory & Image/Audio Storage Types
  */
 
-import { Memory } from '../lib/groq';
+import { Memory, Album } from '../lib/groq';
 
 export type MemoryType = 'photo' | 'voice' | 'text' | 'music';
 
@@ -211,3 +211,74 @@ export class MemoryNotFoundError extends StorageError {
     this.name = 'MemoryNotFoundError';
   }
 }
+
+export class AlbumNotFoundError extends StorageError {
+  constructor(albumId: string) {
+    super(`Album with ID "${albumId}" was not found.`, 'ALBUM_NOT_FOUND');
+    this.name = 'AlbumNotFoundError';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Album Database & Service Types
+// ─────────────────────────────────────────────────────────────
+
+export interface AlbumRecord {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  journal_text: string | null;
+  voice_note_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlbumMemoryRecord {
+  album_id: string;
+  memory_id: string;
+  position: number;
+  created_at: string;
+}
+
+export interface CreateAlbumInput {
+  id?: string;
+  title: string;
+  journalText?: string;
+  description?: string;
+  voiceNoteUrl?: string;
+  memoryIds?: string[];
+}
+
+export interface UpdateAlbumInput {
+  title?: string;
+  journalText?: string;
+  description?: string;
+  voiceNoteUrl?: string;
+  memoryIds?: string[];
+  linkedMemoryIds?: string[];
+}
+
+export interface BatchAlbumResult {
+  created: Album[];
+  failed: {
+    album: Omit<Album, 'id'>;
+    error: string;
+  }[];
+}
+
+export function dbRecordToAlbum(
+  record: AlbumRecord,
+  memoryIds: string[] = [],
+  linkedMemoryIds?: string[]
+): Album {
+  return {
+    id: record.id,
+    title: record.title || 'Untitled Album',
+    memoryIds: memoryIds,
+    journalText: record.journal_text || record.description || undefined,
+    linkedMemoryIds: linkedMemoryIds !== undefined ? linkedMemoryIds : memoryIds,
+    voiceNoteUrl: record.voice_note_url || undefined,
+  };
+}
+

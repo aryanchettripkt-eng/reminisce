@@ -4,8 +4,19 @@ import Vault from './components/Vault';
 import Taskbar from './components/Taskbar';
 import ExtraPages from './components/ExtraPages';
 import { Memory, Album, DayReaction, sortMemoriesIntoAlbums } from './lib/groq';
-import { AuthProvider, useAuth, listUserMemories, deleteMemory as supabaseDeleteMemory } from './services/supabase';
+import { 
+  AuthProvider, 
+  useAuth, 
+  listUserMemories, 
+  deleteMemory as supabaseDeleteMemory,
+  listUserAlbums,
+  createAlbumsBatch,
+  updateAlbum as supabaseUpdateAlbum,
+  deleteAlbum as supabaseDeleteAlbum
+} from './services/supabase';
 import { motion, AnimatePresence } from 'motion/react';
+
+
 
 function ReminiqApp() {
   const { user, isConfigured } = useAuth();
@@ -163,8 +174,21 @@ function ReminiqApp() {
           console.error('Failed to load user memories from Supabase:', err);
           setMemories(initialMemories);
         });
+
+      listUserAlbums()
+        .then((dbAlbums) => {
+          if (dbAlbums.length > 0) {
+            setAlbums(dbAlbums);
+          } else {
+            setAlbums([]);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load user albums from Supabase:', err);
+        });
     } else {
       setMemories(initialMemories);
+      setAlbums([]);
     }
   }, [user, isConfigured]);
 
@@ -176,7 +200,8 @@ function ReminiqApp() {
     setMemories(prev => prev.filter(m => m.id !== memoryId));
     setAlbums(prev => prev.map(a => ({
       ...a,
-      memoryIds: a.memoryIds.filter(id => id !== memoryId)
+      memoryIds: a.memoryIds.filter(id => id !== memoryId),
+      linkedMemoryIds: (a.linkedMemoryIds || a.memoryIds).filter(id => id !== memoryId),
     })));
 
     if (user && isConfigured) {
@@ -200,7 +225,24 @@ function ReminiqApp() {
       if (sortedAlbums.length === 0) {
         setToast({ message: "AI couldn't find distinct groups for these memories. Try adding more context or photos.", type: 'error' });
       } else {
-        setAlbums(sortedAlbums);
+        if (user && isConfigured) {
+          try {
+            const { created, failed } = await createAlbumsBatch(sortedAlbums);
+            if (created.length > 0) {
+              setAlbums(created);
+              if (failed.length > 0) {
+                console.warn('Some albums failed to persist in batch:', failed);
+              }
+            } else {
+              setAlbums(sortedAlbums);
+            }
+          } catch (batchErr) {
+            console.error('Failed to persist batch albums:', batchErr);
+            setAlbums(sortedAlbums);
+          }
+        } else {
+          setAlbums(sortedAlbums);
+        }
         setActiveOverlay('albums');
         setToast({ message: "Memories sorted into albums successfully.", type: 'success' });
       }
@@ -214,11 +256,39 @@ function ReminiqApp() {
 
   const updateAlbumTitle = (albumId: string, newTitle: string) => {
     setAlbums(prev => prev.map(a => a.id === albumId ? { ...a, title: newTitle } : a));
+    if (user && isConfigured) {
+      supabaseUpdateAlbum(albumId, { title: newTitle }).catch((err) => {
+        console.error('Failed to update album title in Supabase:', err);
+      });
+    }
   };
 
   const updateAlbum = (albumId: string, data: Partial<Album>) => {
     setAlbums(prev => prev.map(a => a.id === albumId ? { ...a, ...data } : a));
+    if (user && isConfigured) {
+      supabaseUpdateAlbum(albumId, {
+        title: data.title,
+        journalText: data.journalText,
+        voiceNoteUrl: data.voiceNoteUrl,
+        memoryIds: data.memoryIds,
+        linkedMemoryIds: data.linkedMemoryIds,
+      }).catch((err) => {
+        console.error('Failed to update album in Supabase:', err);
+      });
+    }
   };
+
+  const deleteAlbum = async (albumId: string) => {
+    setAlbums(prev => prev.filter(a => a.id !== albumId));
+    if (user && isConfigured) {
+      try {
+        await supabaseDeleteAlbum(albumId);
+      } catch (err: any) {
+        console.error('Failed to delete album from Supabase:', err);
+      }
+    }
+  };
+
 
   const updateDayReaction = (date: string, data: Partial<DayReaction>) => {
     setDayReactions(prev => {
@@ -325,6 +395,7 @@ function ReminiqApp() {
             onUpdateAlbums={updateAlbums}
             onUpdateAlbumTitle={updateAlbumTitle}
             onUpdateAlbum={updateAlbum}
+            onDeleteAlbum={deleteAlbum}
             dayReactions={dayReactions}
             onUpdateDayReaction={updateDayReaction}
             onSortAlbums={handleSortIntoAlbums}

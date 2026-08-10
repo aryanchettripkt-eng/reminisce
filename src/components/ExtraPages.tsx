@@ -17,6 +17,7 @@ interface ExtraPagesProps {
   onUpdateAlbums: (albums: Album[]) => void;
   onUpdateAlbumTitle: (albumId: string, newTitle: string) => void;
   onUpdateAlbum: (albumId: string, data: Partial<Album>) => void;
+  onDeleteAlbum?: (albumId: string) => void;
   dayReactions: DayReaction[];
   onUpdateDayReaction: (date: string, data: Partial<DayReaction>) => void;
   onSortAlbums: () => void;
@@ -33,6 +34,7 @@ export default function ExtraPages({
   onUpdateAlbums,
   onUpdateAlbumTitle,
   onUpdateAlbum,
+  onDeleteAlbum,
   dayReactions,
   onUpdateDayReaction,
   onSortAlbums,
@@ -263,10 +265,13 @@ export default function ExtraPages({
             <AnimatePresence>
               {selectedAlbum && (
                 <AlbumDetail 
-                  album={selectedAlbum}
+                  album={albums.find(a => a.id === selectedAlbum.id) || selectedAlbum}
                   memories={memories}
                   onBack={() => setSelectedAlbum(null)}
-                  onUpdateAlbum={(data) => onUpdateAlbum(selectedAlbum.id, data)}
+                  onUpdateAlbum={(data) => {
+                    onUpdateAlbum(selectedAlbum.id, data);
+                    setSelectedAlbum(prev => prev ? { ...prev, ...data } : null);
+                  }}
                 />
               )}
             </AnimatePresence>

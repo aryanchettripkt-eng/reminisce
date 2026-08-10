@@ -5,3 +5,5 @@ export * from './validation';
 export * from './memoryStorage';
 export * from './auth';
 export * from './AuthContext';
+export * from './albumService';
+
