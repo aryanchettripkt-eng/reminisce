@@ -113,7 +113,7 @@ async function startServer() {
   app.get('/api/photos/auth/url', async (req: Request, res: Response) => {
     try {
       const { user } = await authenticateUser(req);
-      const origin = getRequestOrigin(req);
+      const origin = getRequestOrigin(req).replace(/\/+$/, '');
       const redirectUri = `${origin}/auth/google-photos/callback`;
       const scope = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
 
