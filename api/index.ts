@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 // Server-side State & Token Stores
-const oauthStateMap = new Map<string, { userId: string; createdAt: number }>();
+const oauthStateMap = new Map<string, { userId: string; redirectUri: string; createdAt: number }>();
 const userGoogleTokens = new Map<string, { accessToken: string; refreshToken?: string; expiresAt: number }>();
 const userPickerSessions = new Map<string, { userId: string; sessionId: string; createdAt: number }>();
 
@@ -20,9 +20,39 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const SPOTIFY_CLIENT_ID = process.env.VITE_SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
 
-const APP_URL = process.env.APP_URL || '';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Helper to determine the accurate active origin (Vercel domain, custom domain, or localhost)
+function getRequestOrigin(req: Request): string {
+  const clientOrigin = (req.query.origin as string) || (req.headers['x-client-origin'] as string);
+  if (clientOrigin && (clientOrigin.startsWith('http://') || clientOrigin.startsWith('https://'))) {
+    return clientOrigin.replace(/\/+$/, '');
+  }
+
+  if (req.headers.origin && typeof req.headers.origin === 'string') {
+    return req.headers.origin.replace(/\/+$/, '');
+  }
+
+  if (req.headers.referer && typeof req.headers.referer === 'string') {
+    try {
+      const parsed = new URL(req.headers.referer);
+      return parsed.origin.replace(/\/+$/, '');
+    } catch {}
+  }
+
+  const proto = (req.headers['x-forwarded-proto'] as string) || 'https';
+  const host = (req.headers['x-forwarded-host'] as string) || req.headers.host;
+  if (host && !host.includes('localhost')) {
+    return `${proto}://${host}`.replace(/\/+$/, '');
+  }
+
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+    return process.env.APP_URL.replace(/\/+$/, '');
+  }
+
+  return host ? `${proto}://${host}`.replace(/\/+$/, '') : (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+}
 
 // Helper to authenticate Supabase user
 async function authenticateUser(req: Request): Promise<{ user: any; token: string; userClient: SupabaseClient }> {
@@ -98,12 +128,12 @@ async function getValidGoogleAccessToken(userId: string): Promise<string> {
 app.get('/api/photos/auth/url', async (req: Request, res: Response) => {
   try {
     const { user } = await authenticateUser(req);
-    const origin = req.headers.origin || APP_URL || `https://${req.headers.host}`;
+    const origin = getRequestOrigin(req);
     const redirectUri = `${origin}/auth/google-photos/callback`;
     const scope = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
 
     const stateToken = crypto.randomUUID();
-    oauthStateMap.set(stateToken, { userId: user.id, createdAt: Date.now() });
+    oauthStateMap.set(stateToken, { userId: user.id, redirectUri, createdAt: Date.now() });
 
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${stateToken}&access_type=offline&prompt=consent`;
 
@@ -116,8 +146,6 @@ app.get('/api/photos/auth/url', async (req: Request, res: Response) => {
 
 app.get(['/auth/google-photos/callback', '/auth/google/callback', '/auth/google-photos/callback/', '/auth/google/callback/'], async (req: Request, res: Response) => {
   const { code, state } = req.query;
-  const origin = req.headers.origin || APP_URL || `https://${req.headers.host}`;
-  const redirectUri = `${origin}/auth/google-photos/callback`;
 
   if (!code || !state) {
     return res.status(400).send('Missing authorization code or state.');
@@ -130,6 +158,7 @@ app.get(['/auth/google-photos/callback', '/auth/google/callback', '/auth/google-
 
   oauthStateMap.delete(state as string);
   const userId = stateData.userId;
+  const redirectUri = stateData.redirectUri || `${getRequestOrigin(req)}/auth/google-photos/callback`;
 
   try {
     const response = await axios.post('https://oauth2.googleapis.com/token', {
@@ -459,7 +488,7 @@ app.delete('/api/photos/session/:sessionId', async (req: Request, res: Response)
 // ─────────────────────────────────────────────────────────────
 
 app.get('/api/auth/spotify/url', (req, res) => {
-  const origin = req.headers.origin || APP_URL || `https://${req.headers.host}`;
+  const origin = getRequestOrigin(req);
   const redirectUri = `${origin}/auth/spotify/callback`;
   const scope = 'user-read-private user-read-email';
   const url = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&show_dialog=true`;
@@ -468,7 +497,7 @@ app.get('/api/auth/spotify/url', (req, res) => {
 
 app.get(['/auth/spotify/callback', '/auth/spotify/callback/'], async (req, res) => {
   const { code } = req.query;
-  const origin = req.headers.origin || APP_URL || `https://${req.headers.host}`;
+  const origin = getRequestOrigin(req);
   const redirectUri = `${origin}/auth/spotify/callback`;
 
   try {

@@ -30,7 +30,14 @@ async function getAuthHeader(): Promise<{ Authorization: string }> {
  */
 export async function getGooglePhotosAuthUrl(): Promise<string> {
   const headers = await getAuthHeader();
-  const res = await fetch('/api/photos/auth/url', { headers });
+  const clientOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const urlParam = clientOrigin ? `?origin=${encodeURIComponent(clientOrigin)}` : '';
+  const res = await fetch(`/api/photos/auth/url${urlParam}`, {
+    headers: {
+      ...headers,
+      'x-client-origin': clientOrigin,
+    },
+  });
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -192,7 +199,8 @@ export async function runGooglePhotosImportFlow(options?: {
 
   if (!pickerPopup) {
     await cancelPickerSession(session.sessionId);
-    throw new Error('Popup was blocked by your browser! Please check the address bar (top right) and click "Always allow pop-ups for localhost:3000", then try again.');
+    const host = typeof window !== 'undefined' ? window.location.host : 'this site';
+    throw new Error(`Popup was blocked by your browser! Please check the address bar (top right) and click "Always allow pop-ups for ${host}", then try again.`);
   }
 
   try {

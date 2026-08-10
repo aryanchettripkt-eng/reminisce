@@ -56,7 +56,10 @@ function ReminiqApp() {
   };
 
   const connectSpotify = async () => {
-    const response = await fetch('/api/auth/spotify/url');
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const response = await fetch(`/api/auth/spotify/url?origin=${encodeURIComponent(origin)}`, {
+      headers: { 'x-client-origin': origin }
+    });
     const { url } = await response.json();
     window.open(url, 'spotify_auth', 'width=600,height=700');
   };
