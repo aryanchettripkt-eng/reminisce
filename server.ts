@@ -48,6 +48,32 @@ function getRequestOrigin(req: Request): string {
   return host ? `${proto}://${host}`.replace(/\/+$/, '') : (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
+// Helper to encrypt a payload into an opaque token using GOOGLE_CLIENT_SECRET
+function encryptTokenPayload(payload: any, secret: string): string {
+  const key = crypto.createHash('sha256').update(secret || 'default-secret-key-reminiq').digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const json = JSON.stringify(payload);
+  const encrypted = Buffer.concat([cipher.update(json, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('base64url')}.${tag.toString('base64url')}.${encrypted.toString('base64url')}`;
+}
+
+// Helper to decrypt an opaque token
+function decryptTokenPayload(token: string, secret: string): any {
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new Error('INVALID_TICKET_FORMAT');
+  const [ivB64, tagB64, encB64] = parts;
+  const key = crypto.createHash('sha256').update(secret || 'default-secret-key-reminiq').digest();
+  const iv = Buffer.from(ivB64, 'base64url');
+  const tag = Buffer.from(tagB64, 'base64url');
+  const encrypted = Buffer.from(encB64, 'base64url');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  return JSON.parse(decrypted.toString('utf8'));
+}
+
 // Clean up stale state every 15 minutes
 setInterval(() => {
   const now = Date.now();
@@ -105,6 +131,71 @@ async function startServer() {
     return { user, token, userClient };
   }
 
+  // Helper to retrieve valid Google access token with automatic refresh & stateless ticket support
+  async function getValidGoogleAccessToken(req: Request, res: Response, userId: string): Promise<string> {
+    let tokenData: { accessToken: string; refreshToken?: string; expiresAt: number; userId?: string } | undefined;
+
+    // 1. Try reading stateless encrypted ticket from header
+    const ticketHeader = req.headers['x-google-auth-ticket'] as string;
+    if (ticketHeader) {
+      try {
+        const decrypted = decryptTokenPayload(ticketHeader, GOOGLE_CLIENT_SECRET || 'secret');
+        if (decrypted && decrypted.userId === userId && decrypted.accessToken) {
+          tokenData = decrypted;
+        }
+      } catch (err) {
+        console.warn('Failed to decrypt x-google-auth-ticket:', err);
+      }
+    }
+
+    // 2. Fallback to in-memory store
+    if (!tokenData) {
+      tokenData = userGoogleTokens.get(userId);
+    }
+
+    if (!tokenData) {
+      throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
+    }
+
+    // 3. Refresh token if expired or about to expire in 60 seconds
+    if (Date.now() >= tokenData.expiresAt - 60000) {
+      if (tokenData.refreshToken) {
+        try {
+          const refreshRes = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: GOOGLE_CLIENT_ID,
+            client_secret: GOOGLE_CLIENT_SECRET,
+            refresh_token: tokenData.refreshToken,
+            grant_type: 'refresh_token',
+          });
+
+          const newAccessToken = refreshRes.data.access_token;
+          const expiresIn = refreshRes.data.expires_in || 3600;
+          tokenData.accessToken = newAccessToken;
+          tokenData.expiresAt = Date.now() + expiresIn * 1000;
+          userGoogleTokens.set(userId, tokenData);
+
+          const newTicket = encryptTokenPayload({
+            userId,
+            accessToken: newAccessToken,
+            refreshToken: tokenData.refreshToken,
+            expiresAt: tokenData.expiresAt,
+          }, GOOGLE_CLIENT_SECRET || 'secret');
+
+          res.setHeader('x-new-auth-ticket', newTicket);
+          return newAccessToken;
+        } catch (refreshErr) {
+          userGoogleTokens.delete(userId);
+          throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
+        }
+      } else {
+        userGoogleTokens.delete(userId);
+        throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
+      }
+    }
+
+    return tokenData.accessToken;
+  }
+
   // ─────────────────────────────────────────────────────────────
   // Google Photos Picker OAuth Endpoints
   // ─────────────────────────────────────────────────────────────
@@ -117,10 +208,12 @@ async function startServer() {
       const redirectUri = `${origin}/auth/google-photos/callback`;
       const scope = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
 
-      const stateToken = crypto.randomUUID();
+      const stateData = { userId: user.id, redirectUri, timestamp: Date.now() };
+      const stateToken = encryptTokenPayload(stateData, GOOGLE_CLIENT_SECRET || 'secret');
+
       oauthStateMap.set(stateToken, { userId: user.id, redirectUri, createdAt: Date.now() });
 
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${stateToken}&access_type=offline&prompt=consent`;
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(stateToken)}&access_type=offline&prompt=consent`;
 
       res.json({ url });
     } catch (err: any) {
@@ -137,14 +230,20 @@ async function startServer() {
       return res.status(400).send('Missing authorization code or state.');
     }
 
-    const stateData = oauthStateMap.get(state as string);
-    if (!stateData) {
+    let stateData: any;
+    try {
+      stateData = decryptTokenPayload(state as string, GOOGLE_CLIENT_SECRET || 'secret');
+    } catch {
+      stateData = oauthStateMap.get(state as string);
+    }
+
+    if (!stateData || !stateData.userId) {
       return res.status(400).send('Invalid or expired OAuth state parameter. Please try again.');
     }
 
     oauthStateMap.delete(state as string);
     const userId = stateData.userId;
-    const redirectUri = stateData.redirectUri || `${getRequestOrigin(req)}/auth/google-photos/callback`;
+    const redirectUri = stateData.redirectUri || `${getRequestOrigin(req).replace(/\/+$/, '')}/auth/google-photos/callback`;
 
     try {
       const response = await axios.post('https://oauth2.googleapis.com/token', {
@@ -156,13 +255,21 @@ async function startServer() {
       });
 
       const { access_token, refresh_token, expires_in } = response.data;
+      const expiresAt = Date.now() + (expires_in || 3600) * 1000;
 
       // Store token server-side only mapped to the Reminiq user ID
       userGoogleTokens.set(userId, {
         accessToken: access_token,
         refreshToken: refresh_token,
-        expiresAt: Date.now() + (expires_in || 3600) * 1000,
+        expiresAt,
       });
+
+      const authTicket = encryptTokenPayload({
+        userId,
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        expiresAt,
+      }, GOOGLE_CLIENT_SECRET || 'secret');
 
       // Emit event to opener window and close popup (DO NOT expose token to client)
       res.send(`
@@ -171,7 +278,7 @@ async function startServer() {
           <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #fdfaf6; color: #4a342a;">
             <script>
               if (window.opener) {
-                window.opener.postMessage({ type: 'GOOGLE_PHOTOS_AUTH_SUCCESS' }, '*');
+                window.opener.postMessage({ type: 'GOOGLE_PHOTOS_AUTH_SUCCESS', authTicket: ${JSON.stringify(authTicket)} }, '*');
                 window.close();
               } else {
                 window.location.href = '/';
@@ -188,51 +295,13 @@ async function startServer() {
     }
   });
 
-  // Helper to retrieve valid Google access token with automatic refresh
-  async function getValidGoogleAccessToken(userId: string): Promise<string> {
-    const tokenData = userGoogleTokens.get(userId);
-    if (!tokenData) {
-      throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
-    }
-
-    // Refresh token if expired or about to expire in 60 seconds
-    if (Date.now() >= tokenData.expiresAt - 60000) {
-      if (tokenData.refreshToken) {
-        try {
-          const refreshRes = await axios.post('https://oauth2.googleapis.com/token', {
-            client_id: GOOGLE_CLIENT_ID,
-            client_secret: GOOGLE_CLIENT_SECRET,
-            refresh_token: tokenData.refreshToken,
-            grant_type: 'refresh_token',
-          });
-
-          const newAccessToken = refreshRes.data.access_token;
-          const expiresIn = refreshRes.data.expires_in || 3600;
-          tokenData.accessToken = newAccessToken;
-          tokenData.expiresAt = Date.now() + expiresIn * 1000;
-          userGoogleTokens.set(userId, tokenData);
-          return newAccessToken;
-        } catch (refreshErr) {
-          console.warn('Failed to refresh Google token:', refreshErr);
-          userGoogleTokens.delete(userId);
-          throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
-        }
-      } else {
-        userGoogleTokens.delete(userId);
-        throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
-      }
-    }
-
-    return tokenData.accessToken;
-  }
-
   // 3. Create Google Photos Picker Session
   app.post('/api/photos/session/create', async (req: Request, res: Response) => {
     try {
       const { user } = await authenticateUser(req);
       let accessToken: string;
       try {
-        accessToken = await getValidGoogleAccessToken(user.id);
+        accessToken = await getValidGoogleAccessToken(req, res, user.id);
       } catch {
         return res.status(401).json({
           error: 'GOOGLE_PHOTOS_AUTH_REQUIRED',
@@ -292,13 +361,13 @@ async function startServer() {
       const { sessionId } = req.params;
 
       const sessionOwnership = userPickerSessions.get(sessionId);
-      if (!sessionOwnership || sessionOwnership.userId !== user.id) {
+      if (sessionOwnership && sessionOwnership.userId !== user.id) {
         return res.status(403).json({ error: 'FORBIDDEN', message: 'Session not found or access denied.' });
       }
 
       let accessToken: string;
       try {
-        accessToken = await getValidGoogleAccessToken(user.id);
+        accessToken = await getValidGoogleAccessToken(req, res, user.id);
       } catch {
         return res.status(401).json({ error: 'GOOGLE_PHOTOS_AUTH_REQUIRED' });
       }
@@ -328,13 +397,13 @@ async function startServer() {
       const { albumId } = req.body || {};
 
       const sessionOwnership = userPickerSessions.get(sessionId);
-      if (!sessionOwnership || sessionOwnership.userId !== user.id) {
+      if (sessionOwnership && sessionOwnership.userId !== user.id) {
         return res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied to this picker session.' });
       }
 
       let accessToken: string;
       try {
-        accessToken = await getValidGoogleAccessToken(user.id);
+        accessToken = await getValidGoogleAccessToken(req, res, user.id);
       } catch {
         return res.status(401).json({ error: 'GOOGLE_PHOTOS_AUTH_REQUIRED' });
       }

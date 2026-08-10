@@ -13,7 +13,27 @@ import {
  * recommended config, and importing selected photos directly into Reminiq's private Supabase storage.
  */
 
-async function getAuthHeader(): Promise<{ Authorization: string }> {
+const TICKET_STORAGE_KEY = 'reminiq_google_auth_ticket';
+
+function getSavedAuthTicket(): string | null {
+  try {
+    return sessionStorage.getItem(TICKET_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveAuthTicket(ticket: string | null) {
+  try {
+    if (ticket) {
+      sessionStorage.setItem(TICKET_STORAGE_KEY, ticket);
+    } else {
+      sessionStorage.removeItem(TICKET_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+async function getAuthHeader(): Promise<{ Authorization: string; 'x-google-auth-ticket'?: string }> {
   const client = getSupabaseClient();
   const { data, error } = await client.auth.getSession();
   const token = data?.session?.access_token;
@@ -22,7 +42,23 @@ async function getAuthHeader(): Promise<{ Authorization: string }> {
     throw new AuthenticationRequiredError('Please sign in to Reminiq to import photos.');
   }
 
-  return { Authorization: `Bearer ${token}` };
+  const headers: { Authorization: string; 'x-google-auth-ticket'?: string } = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  const ticket = getSavedAuthTicket();
+  if (ticket) {
+    headers['x-google-auth-ticket'] = ticket;
+  }
+
+  return headers;
+}
+
+function checkAndSaveNewTicket(res: Response) {
+  const newTicket = res.headers.get('x-new-auth-ticket');
+  if (newTicket) {
+    saveAuthTicket(newTicket);
+  }
 }
 
 /**
@@ -61,9 +97,12 @@ export async function createPickerSession(): Promise<GooglePhotosSessionResponse
     },
   });
 
+  checkAndSaveNewTicket(res);
+
   if (res.status === 401) {
     const data = await res.json().catch(() => ({}));
     if (data.error === 'GOOGLE_PHOTOS_AUTH_REQUIRED') {
+      saveAuthTicket(null);
       throw new Error('GOOGLE_PHOTOS_AUTH_REQUIRED');
     }
   }
@@ -84,6 +123,8 @@ export async function pollPickerSession(sessionId: string): Promise<GooglePhotos
   const res = await fetch(`/api/photos/session/${encodeURIComponent(sessionId)}/poll`, {
     headers,
   });
+
+  checkAndSaveNewTicket(res);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -110,6 +151,8 @@ export async function importPickerMedia(
     body: JSON.stringify({ albumId }),
   });
 
+  checkAndSaveNewTicket(res);
+
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.message || 'Failed to import selected photos from Google Photos.');
@@ -124,10 +167,11 @@ export async function importPickerMedia(
 export async function cancelPickerSession(sessionId: string): Promise<void> {
   try {
     const headers = await getAuthHeader();
-    await fetch(`/api/photos/session/${encodeURIComponent(sessionId)}`, {
+    const res = await fetch(`/api/photos/session/${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',
       headers,
     });
+    checkAndSaveNewTicket(res);
   } catch {
     // Best-effort cleanup
   }
@@ -168,6 +212,9 @@ export async function runGooglePhotosImportFlow(options?: {
 
         const handleAuthMessage = (event: MessageEvent) => {
           if (event.data?.type === 'GOOGLE_PHOTOS_AUTH_SUCCESS') {
+            if (event.data?.authTicket) {
+              saveAuthTicket(event.data.authTicket);
+            }
             window.removeEventListener('message', handleAuthMessage);
             resolve();
           }
