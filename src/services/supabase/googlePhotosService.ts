@@ -205,6 +205,7 @@ export async function runGooglePhotosImportFlow(options?: {
       const authUrl = await getGooglePhotosAuthUrl();
 
       await new Promise<void>((resolve, reject) => {
+        let authCompleted = false;
         const popup = window.open(authUrl, 'google_photos_auth', 'width=600,height=700');
         if (!popup) {
           return reject(new Error('Popup blocked. Please allow popups to connect Google Photos.'));
@@ -212,6 +213,7 @@ export async function runGooglePhotosImportFlow(options?: {
 
         const handleAuthMessage = (event: MessageEvent) => {
           if (event.data?.type === 'GOOGLE_PHOTOS_AUTH_SUCCESS') {
+            authCompleted = true;
             if (event.data?.authTicket) {
               saveAuthTicket(event.data.authTicket);
             }
@@ -226,7 +228,11 @@ export async function runGooglePhotosImportFlow(options?: {
           if (popup.closed) {
             clearInterval(checkClosed);
             window.removeEventListener('message', handleAuthMessage);
-            resolve();
+            if (!authCompleted && !getSavedAuthTicket()) {
+              reject(new Error('Google Photos authorization was not completed. Please grant permissions in the Google window and try again.'));
+            } else {
+              resolve();
+            }
           }
         }, 800);
       });
