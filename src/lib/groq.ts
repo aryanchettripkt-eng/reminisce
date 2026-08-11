@@ -138,6 +138,15 @@ export interface Memory {
   musicUrl?: string;
   transcript?: string;
   emotion?: string;
+  tags?: string[];
+  source?: 'local' | 'supabase' | 'spotify' | 'google' | string;
+  note?: string;
+  coverPhoto?: string;
+  description?: string;
+  aestheticTone?: string;
+  dominantEmotion?: string;
+  colorPalette?: string[];
+  createdAt?: string;
   music?: {
     song: string;
     artist: string;
@@ -155,6 +164,7 @@ export interface DayReaction {
   date: string;
   emoji: string;
   journal?: string;
+  note?: string;
   photoUrl?: string;
   music?: {
     song: string;
@@ -169,6 +179,17 @@ export interface Album {
   journalText?: string;
   linkedMemoryIds?: string[];
   voiceNoteUrl?: string;
+  coverPhoto?: string;
+  cover_photo?: string;
+  description?: string;
+  aestheticTone?: string;
+  aesthetic_tone?: string;
+  dominantEmotion?: string;
+  dominant_emotion?: string;
+  colorPalette?: string[];
+  color_palette?: string[];
+  createdAt?: string;
+  created_at?: string;
 }
 
 // ─────────────────────────────────────────────────────────────

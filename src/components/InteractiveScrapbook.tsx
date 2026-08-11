@@ -12,7 +12,8 @@ import {
   Undo, 
   Type, 
   Smile, 
-  Maximize2 
+  Maximize2,
+  X 
 } from 'lucide-react';
 import { Memory } from '../lib/groq';
 import { 
@@ -184,7 +185,7 @@ export default function InteractiveScrapbook({ memories }: { memories: Memory[] 
     setItems(items.map(i => i.id === id ? { ...i, rotation: (i.rotation + 15) % 360 } : i));
   };
 
-  const currentThemeClass = CANVAS_THEMES.find(t => t.id === canvasTheme)?.class || 'linen-board';
+  const currentThemeClass = PAPER_TEXTURES.find(t => t.id === activeTexture)?.className || 'linen-board';
 
   return (
     <div className="relative w-full h-full flex flex-col rounded-3xl overflow-hidden border border-light-brown/40 shadow-2xl bg-warm-white">

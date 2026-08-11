@@ -6,8 +6,7 @@ import {
   BookOpen, 
   FolderHeart, 
   Edit2, 
-  Trash2,
-  ChevronLeft
+  Trash2 
 } from 'lucide-react';
 import { Memory, Album, DayReaction } from '../lib/groq';
 import MonthlyPinboard from './MonthlyPinboard';
@@ -63,7 +62,7 @@ export default function ExtraPages({
 
   if (!activeOverlay) return null;
 
-  // 1. Monthly Pinboard (Connected 12-Month Folders & Calendar Board)
+  // 1. Monthly Pinboard (Connected Folders & Calendar Board)
   if (activeOverlay === 'monthly-pinboard' || activeOverlay === 'calendar' || activeOverlay === 'folders') {
     return (
       <MonthlyPinboard
@@ -77,7 +76,7 @@ export default function ExtraPages({
     );
   }
 
-  // 2. Vinyl Vault (Dedicated Music Storage & Spotify Sync & In-Browser Audio)
+  // 2. Vinyl Vault (Dedicated Music Storage & Spotify Sync)
   if (activeOverlay === 'vinyl-vault' || activeOverlay === 'vinyl' || activeOverlay === 'music') {
     return (
       <VinylVault
@@ -91,7 +90,7 @@ export default function ExtraPages({
     );
   }
 
-  // 3. AI Memory Search (Groq Llama 3.3 Semantic Librarian)
+  // 3. AI Memory Search
   if (activeOverlay === 'ai-search' || activeOverlay === 'try-it') {
     return (
       <AISearchView
