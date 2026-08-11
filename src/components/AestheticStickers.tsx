@@ -67,232 +67,179 @@ export const DriedPressedFlower: React.FC<{ className?: string; size?: number }>
   <svg width={size} height={size * 1.2} viewBox="0 0 80 96" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M40 92 C40 60 40 30 40 22" stroke="#8C9A7D" strokeWidth="2" strokeLinecap="round" />
     <path d="M40 70 C30 65 24 68 20 62 C28 60 36 64 40 68" fill="#94A887" />
-    <path d="M40 55 C50 50 56 53 60 47 C52 45 44 49 40 53" fill="#94A887" />
-    <path d="M40 40 C32 36 26 39 22 34 C30 32 37 36 40 38" fill="#94A887" />
-    <circle cx="40" cy="18" r="14" fill="#E9D8A6" stroke="#DDA15E" strokeWidth="1.5" />
-    <circle cx="40" cy="18" r="6" fill="#BC6C25" />
+    <path d="M40 64 C50 59 56 62 60 56 C52 54 44 58 40 62" fill="#94A887" />
+    <path d="M40 52 C32 47 28 50 24 44 C31 43 37 46 40 50" fill="#94A887" />
+    <path d="M40 44 C48 39 52 42 56 36 C49 35 43 38 40 42" fill="#94A887" />
+    <ellipse cx="40" cy="14" rx="7" ry="12" fill="#E6AFB9" opacity="0.85" />
+    <ellipse cx="40" cy="30" rx="7" ry="12" fill="#E6AFB9" opacity="0.85" />
+    <ellipse cx="32" cy="22" rx="12" ry="7" fill="#E6AFB9" opacity="0.85" />
+    <ellipse cx="48" cy="22" rx="12" ry="7" fill="#E6AFB9" opacity="0.85" />
+    <circle cx="40" cy="22" r="5" fill="#E9C46A" />
   </svg>
 );
 
-// 7. Retro iPod Mini / MP3 Player (Reference Design Match)
-export const RetroIpodMini: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 56 }) => (
-  <svg width={size} height={size * 1.5} viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Body */}
-    <rect x="8" y="6" width="64" height="108" rx="14" fill="url(#ipodGrad)" stroke="#4A6572" strokeWidth="2" filter="drop-shadow(0 6px 8px rgba(0,0,0,0.25))" />
-    {/* LCD Screen */}
-    <rect x="16" y="16" width="48" height="34" rx="4" fill="#C5D3C1" stroke="#334E68" strokeWidth="1.5" />
-    <rect x="20" y="22" width="28" height="4" rx="1" fill="#486581" opacity="0.8" />
-    <rect x="20" y="28" width="40" height="3" rx="1" fill="#627D98" opacity="0.6" />
-    <rect x="20" y="38" width="40" height="2" rx="1" fill="#829AB1" opacity="0.5" />
-    <rect x="20" y="38" width="18" height="2" rx="1" fill="#243B53" />
-    {/* Click Wheel */}
-    <circle cx="40" cy="80" r="22" fill="#F0F4F8" stroke="#BCCCDC" strokeWidth="1.5" />
-    <circle cx="40" cy="80" r="8" fill="#D9E2EC" stroke="#9FB3C8" strokeWidth="1" />
-    {/* Wheel labels */}
-    <text x="40" y="66" textAnchor="middle" fontSize="6" fill="#627D98" fontFamily="sans-serif" fontWeight="bold">MENU</text>
-    <path d="M24 80 L28 77 L28 83 Z" fill="#627D98" />
-    <path d="M56 80 L52 77 L52 83 Z" fill="#627D98" />
-    <path d="M38 94 L42 94 M40 91 L40 97" stroke="#627D98" strokeWidth="1.5" strokeLinecap="round" />
-    <defs>
-      <linearGradient id="ipodGrad" x1="8" y1="6" x2="72" y2="114" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#708DB3" />
-        <stop offset="1" stopColor="#486581" />
-      </linearGradient>
-    </defs>
+// 7. Cursive Washi Tape: "remember this"
+export const WashiTapeRemember: React.FC<{ className?: string; width?: number }> = ({ className = '', width = 140 }) => (
+  <svg width={width} height={width * 0.24} viewBox="0 0 160 38" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 0 L156 0 L160 38 L0 38 Z" fill="#FCEADE" fillOpacity="0.85" />
+    <path d="M4 0 L0 8 L4 16 L0 24 L4 32 L0 38 M156 0 L160 8 L156 16 L160 24 L156 32 L160 38" stroke="#DDA7A5" strokeWidth="1" strokeDasharray="2 2" />
+    <text x="80" y="24" textAnchor="middle" fill="#583101" fontFamily="'Caveat', cursive" fontSize="18" fontWeight="600">
+      remember this ✨
+    </text>
   </svg>
 );
 
-// 8. Circular Lace / Doily Cutout Frame (Reference Design Match)
-export const LaceDoilyFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 68 }) => (
-  <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <circle cx="60" cy="60" r="54" fill="#FFFDF9" stroke="#E2D9C8" strokeWidth="1.5" />
-    {Array.from({ length: 16 }).map((_, i) => {
-      const angle = (i * 360) / 16;
-      return (
-        <circle
-          key={i}
-          cx={60 + 52 * Math.cos((angle * Math.PI) / 180)}
-          cy={60 + 52 * Math.sin((angle * Math.PI) / 180)}
-          r="6"
-          fill="#FFFDF9"
-          stroke="#D8CEBC"
-          strokeWidth="1.2"
-        />
-      );
-    })}
-    <circle cx="60" cy="60" r="42" fill="none" stroke="#D8CEBC" strokeWidth="1" strokeDasharray="3 3" />
-    <circle cx="60" cy="60" r="34" fill="#F7F2E7" stroke="#C4AB91" strokeWidth="1" />
+// 8. Cursive Washi Tape: "golden hour"
+export const WashiTapeGoldenHour: React.FC<{ className?: string; width?: number }> = ({ className = '', width = 140 }) => (
+  <svg width={width} height={width * 0.24} viewBox="0 0 160 38" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 0 L156 0 L160 38 L0 38 Z" fill="#FFF1BD" fillOpacity="0.85" />
+    <path d="M4 0 L0 8 L4 16 L0 24 L4 32 L0 38 M156 0 L160 8 L156 16 L160 24 L156 32 L160 38" stroke="#D4A373" strokeWidth="1" strokeDasharray="2 2" />
+    <text x="80" y="24" textAnchor="middle" fill="#7F4F24" fontFamily="'Caveat', cursive" fontSize="18" fontWeight="600">
+      golden hour ☀️
+    </text>
   </svg>
 );
 
-// 9. Star Border Frame - Olive Green (Reference Design Match)
-export const StarBorderOliveFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 64 }) => (
-  <svg width={size} height={size * 1.2} viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="6" y="6" width="88" height="108" rx="6" fill="#F6F7F2" stroke="#6B7A5D" strokeWidth="3" />
-    <rect x="14" y="14" width="72" height="74" rx="3" fill="#E8ECE1" stroke="#8FA07E" strokeWidth="1.5" />
-    {/* Small decorative stars around border */}
-    {[
-      { x: 10, y: 10 }, { x: 50, y: 8 }, { x: 90, y: 10 },
-      { x: 10, y: 50 }, { x: 90, y: 50 },
-      { x: 10, y: 110 }, { x: 50, y: 112 }, { x: 90, y: 110 },
-    ].map((pt, i) => (
-      <polygon key={i} points={`${pt.x},${pt.y-3} ${pt.x+2},${pt.y-1} ${pt.x+4},${pt.y-1} ${pt.x+2},${pt.y+1} ${pt.x+3},${pt.y+3} ${pt.x},${pt.y+2} ${pt.x-3},${pt.y+3} ${pt.x-2},${pt.y+1} ${pt.x-4},${pt.y-1} ${pt.x-2},${pt.y-1}`} fill="#6B7A5D" />
-    ))}
+// 9. Cursive Washi Tape: "cherish this"
+export const WashiTapeCherish: React.FC<{ className?: string; width?: number }> = ({ className = '', width = 140 }) => (
+  <svg width={width} height={width * 0.24} viewBox="0 0 160 38" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 0 L156 0 L160 38 L0 38 Z" fill="#D8E2DC" fillOpacity="0.85" />
+    <path d="M4 0 L0 8 L4 16 L0 24 L4 32 L0 38 M156 0 L160 8 L156 16 L160 24 L156 32 L160 38" stroke="#8F9E89" strokeWidth="1" strokeDasharray="2 2" />
+    <text x="80" y="24" textAnchor="middle" fill="#2D3A27" fontFamily="'Caveat', cursive" fontSize="18" fontWeight="600">
+      cherish this 🍃
+    </text>
   </svg>
 );
 
-// 10. Star Border Frame - Espresso Brown
-export const StarBorderBrownFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 64 }) => (
-  <svg width={size} height={size * 1.2} viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="6" y="6" width="88" height="108" rx="6" fill="#FAF6EE" stroke="#5D4037" strokeWidth="3" />
-    <rect x="14" y="14" width="72" height="74" rx="3" fill="#EFEBE4" stroke="#8D6E63" strokeWidth="1.5" />
-    {[
-      { x: 10, y: 10 }, { x: 50, y: 8 }, { x: 90, y: 10 },
-      { x: 10, y: 110 }, { x: 50, y: 112 }, { x: 90, y: 110 },
-    ].map((pt, i) => (
-      <polygon key={i} points={`${pt.x},${pt.y-3} ${pt.x+2},${pt.y-1} ${pt.x+4},${pt.y-1} ${pt.x+2},${pt.y+1} ${pt.x+3},${pt.y+3} ${pt.x},${pt.y+2} ${pt.x-3},${pt.y+3} ${pt.x-2},${pt.y+1} ${pt.x-4},${pt.y-1} ${pt.x-2},${pt.y-1}`} fill="#5D4037" />
-    ))}
+// 10. Push Pin (Brass / Gold)
+export const GoldPushPin: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 28 }) => (
+  <svg width={size} height={size * 1.3} viewBox="0 0 30 40" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <ellipse cx="15" cy="38" rx="6" ry="2" fill="rgba(0,0,0,0.3)" />
+    <path d="M15 20 L15 37" stroke="#718096" strokeWidth="2.5" strokeLinecap="round" />
+    <ellipse cx="15" cy="20" rx="9" ry="3.5" fill="#B7791F" stroke="#744210" strokeWidth="1" />
+    <path d="M6 20 C6 14 10 10 15 10 C20 10 24 14 24 20 Z" fill="#D69E2E" stroke="#975A16" strokeWidth="1" />
+    <circle cx="15" cy="9" r="6" fill="#ECC94B" stroke="#B7791F" strokeWidth="1" />
+    <ellipse cx="13" cy="7" rx="2" ry="1.5" fill="#FEFCBF" />
   </svg>
 );
 
-// 11. Red Gingham & Lace Frame (Reference Design Match)
-export const GinghamLaceFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 64 }) => (
-  <svg width={size} height={size * 1.2} viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="6" y="6" width="88" height="108" rx="4" fill="#C53030" stroke="#9B2C2C" strokeWidth="2" />
-    {/* Gingham grid overlays */}
-    <rect x="6" y="6" width="88" height="108" rx="4" fill="url(#ginghamPat)" opacity="0.75" />
-    <rect x="16" y="16" width="68" height="72" rx="2" fill="#FFFDF9" stroke="#E2E8F0" strokeWidth="1.5" />
-    <defs>
-      <pattern id="ginghamPat" width="12" height="12" patternUnits="userSpaceOnUse">
-        <rect width="6" height="6" fill="#FEB2B2" />
-        <rect x="6" y="6" width="6" height="6" fill="#FEB2B2" />
-      </pattern>
-    </defs>
+// 11. Brass Paperclip
+export const BrassPaperClip: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 32 }) => (
+  <svg width={size * 0.5} height={size} viewBox="0 0 24 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M8 12 L8 36 C8 41 16 41 16 36 L16 8 C16 3 4 3 4 8 L4 38 C4 46 20 46 20 38 L20 14" stroke="#B7791F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 12 L8 36 C8 41 16 41 16 36 L16 8 C16 3 4 3 4 8 L4 38 C4 46 20 46 20 38 L20 14" stroke="#ECC94B" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
   </svg>
 );
 
-// 12. Purple Paperclip
-export const PurplePaperclip: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 32 }) => (
-  <svg width={size} height={size * 1.6} viewBox="0 0 40 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 24 L12 50 C12 56 28 56 28 50 L28 14 C28 6 18 6 18 14 L18 44 C18 48 24 48 24 44 L24 22" stroke="#805AD5" strokeWidth="3.5" strokeLinecap="round" />
-  </svg>
-);
-
-// 13. Metallic Foldback Binder Clip
-export const MetalBinderClip: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 38 }) => (
-  <svg width={size} height={size} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Body */}
-    <path d="M12 28 L48 28 L44 52 L16 52 Z" fill="#1A202C" stroke="#171923" strokeWidth="2" />
-    {/* Wire Arms */}
-    <path d="M22 28 L22 12 C22 8 30 8 30 12 L30 28" fill="none" stroke="#CBD5E0" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M38 28 L38 12 C38 8 30 8 30 12 L30 28" fill="none" stroke="#E2E8F0" strokeWidth="2.5" strokeLinecap="round" />
-  </svg>
-);
-
-// 14. Yellow Sticky Note
-export const YellowStickyNote: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 52 }) => (
-  <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M6 6 L74 6 L74 62 L60 74 L6 74 Z" fill="#FEFCBF" stroke="#ECC94B" strokeWidth="1.5" filter="drop-shadow(0 3px 4px rgba(0,0,0,0.15))" />
-    <path d="M60 62 L74 62 L60 74 Z" fill="#D69E2E" opacity="0.7" />
-    <line x1="16" y1="22" x2="56" y2="22" stroke="#D69E2E" strokeWidth="1.5" opacity="0.6" />
-    <line x1="16" y1="34" x2="64" y2="34" stroke="#D69E2E" strokeWidth="1.5" opacity="0.6" />
-    <line x1="16" y1="46" x2="48" y2="46" stroke="#D69E2E" strokeWidth="1.5" opacity="0.6" />
-  </svg>
-);
-
-// 15. Golden Sunflower
-export const SunflowerBloom: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {Array.from({ length: 12 }).map((_, i) => {
-      const angle = (i * 360) / 12;
-      return (
-        <ellipse
-          key={i}
-          cx={40 + 20 * Math.cos((angle * Math.PI) / 180)}
-          cy={40 + 20 * Math.sin((angle * Math.PI) / 180)}
-          rx="10"
-          ry="5"
-          transform={`rotate(${angle + 90} ${40 + 20 * Math.cos((angle * Math.PI) / 180)} ${40 + 20 * Math.sin((angle * Math.PI) / 180)})`}
-          fill="#D69E2E"
-          stroke="#B7791F"
-          strokeWidth="1"
-        />
-      );
-    })}
-    <circle cx="40" cy="40" r="14" fill="#744210" stroke="#521B41" strokeWidth="1.5" />
-    <circle cx="40" cy="40" r="10" fill="#521B41" opacity="0.7" />
-  </svg>
-);
-
-// 16. Vintage Monarch Butterfly
-export const VintageButterfly: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 48 }) => (
-  <svg width={size} height={size * 0.75} viewBox="0 0 80 60" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M40 30 C30 10 10 12 12 32 C14 42 28 44 40 35 Z" fill="#DD6B20" stroke="#7B341E" strokeWidth="1.5" />
-    <path d="M40 30 C50 10 70 12 68 32 C66 42 52 44 40 35 Z" fill="#DD6B20" stroke="#7B341E" strokeWidth="1.5" />
-    <path d="M40 35 C32 40 24 50 30 56 C38 56 40 45 40 35 Z" fill="#C05621" stroke="#7B341E" strokeWidth="1.5" />
-    <path d="M40 35 C48 40 56 50 50 56 C42 56 40 45 40 35 Z" fill="#C05621" stroke="#7B341E" strokeWidth="1.5" />
-    <ellipse cx="40" cy="34" rx="2.5" ry="12" fill="#2D3748" />
-  </svg>
-);
-
-// 17. Coffee Ring Stain
-export const CoffeeRingStain: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <circle cx="50" cy="50" r="38" stroke="#9C6644" strokeWidth="4" opacity="0.35" strokeDasharray="18 4 32 6 8 3" />
-    <circle cx="50" cy="50" r="40" stroke="#7F4F24" strokeWidth="1.5" opacity="0.25" />
-  </svg>
-);
-
-// 18. Washi Tape Remember
-export const WashiTapeRemember: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 80 }) => (
-  <svg width={size} height={size * 0.3} viewBox="0 0 120 36" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M2 4 L118 4 L116 32 L4 32 Z" fill="#E9D8A6" stroke="#D4A373" strokeWidth="1" strokeDasharray="4 2" opacity="0.88" />
-    <text x="60" y="22" textAnchor="middle" fontFamily="Caveat, cursive" fontSize="14" fill="#7A5E45" fontWeight="bold">remember this ✨</text>
-  </svg>
-);
-
-// 19. Washi Tape Golden Hour
-export const WashiTapeGoldenHour: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 80 }) => (
-  <svg width={size} height={size * 0.3} viewBox="0 0 120 36" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M4 2 L116 2 L118 34 L2 34 Z" fill="#F4A261" stroke="#E76F51" strokeWidth="1" opacity="0.85" />
-    <text x="60" y="23" textAnchor="middle" fontFamily="Caveat, cursive" fontSize="14" fill="#FFFFFF" fontWeight="bold">golden hour 🌅</text>
-  </svg>
-);
-
-// 20. Washi Tape Cherish
-export const WashiTapeCherish: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 80 }) => (
-  <svg width={size} height={size * 0.3} viewBox="0 0 120 36" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M2 6 L118 2 L116 30 L4 34 Z" fill="#E8B4B8" stroke="#DDA7A5" strokeWidth="1" opacity="0.88" />
-    <text x="60" y="22" textAnchor="middle" fontFamily="Caveat, cursive" fontSize="14" fill="#6D597A" fontWeight="bold">cherish forever 🌸</text>
-  </svg>
-);
-
-// Push Pins & Clips
-export const GoldPushPin: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 24 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <circle cx="16" cy="14" r="8" fill="#DDA15E" stroke="#BC6C25" strokeWidth="1.5" />
-    <circle cx="14" cy="12" r="3" fill="#FEFAE0" opacity="0.7" />
-    <path d="M16 22 L16 30" stroke="#7F4F24" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
-export const BrassPaperClip: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 28 }) => (
-  <svg width={size} height={size * 1.5} viewBox="0 0 30 45" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M8 18 L8 34 C8 38 20 38 20 34 L20 10 C20 4 12 4 12 10 L12 30 C12 33 16 33 16 30 L16 15" stroke="#DDA15E" strokeWidth="2.5" strokeLinecap="round" />
-  </svg>
-);
-
+// 12. Vintage Airmail / Cancellation Stamp
 export const AirmailStamp: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 48 }) => (
-  <svg width={size} height={size * 0.8} viewBox="0 0 60 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="2" y="2" width="56" height="44" rx="2" fill="#F6F4EB" stroke="#C4AB91" strokeWidth="1.5" strokeDasharray="3 3" />
-    <rect x="6" y="6" width="48" height="36" fill="#94D2BD" opacity="0.3" />
-    <circle cx="30" cy="24" r="10" fill="#E76F51" opacity="0.6" />
-    <text x="30" y="27" textAnchor="middle" fontFamily="sans-serif" fontSize="8" fill="#264653" fontWeight="bold">AIR MAIL</text>
+  <svg width={size} height={size * 0.8} viewBox="0 0 80 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="2" y="2" width="76" height="60" rx="3" fill="#FAF0CA" stroke="#C5A880" strokeWidth="2" strokeDasharray="3 3" />
+    <circle cx="40" cy="32" r="22" stroke="#A8423F" strokeWidth="1.8" strokeDasharray="4 2" opacity="0.75" />
+    <text x="40" y="30" textAnchor="middle" fill="#A8423F" fontFamily="'Lato', sans-serif" fontSize="8" fontWeight="bold" letterSpacing="1">
+      AIR MAIL
+    </text>
+    <text x="40" y="40" textAnchor="middle" fill="#A8423F" fontFamily="'Caveat', cursive" fontSize="12" fontWeight="bold">
+      PARIS • 1984
+    </text>
   </svg>
 );
 
+// 13. Pastel Pink Heart
 export const PastelHeartPink: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 36 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M20 12 C16 4 6 4 6 14 C6 24 20 34 20 34 C20 34 34 24 34 14 C34 4 24 4 20 12 Z" fill="#F4A261" stroke="#E76F51" strokeWidth="1.5" />
+  <svg width={size} height={size} viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M25 42 C25 42 5 28 5 16 C5 8 13 4 19 8 C23 11 25 15 25 15 C25 15 27 11 31 8 C37 4 45 8 45 16 C45 28 25 42 25 42 Z" fill="#F4A261" opacity="0.85" stroke="#E76F51" strokeWidth="1.5" />
+  </svg>
+);
+
+// 14. Retro iPod Mini / MP3 Player
+export const RetroIpodMini: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 56 }) => (
+  <svg width={size * 0.65} height={size} viewBox="0 0 65 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="2" y="2" width="61" height="96" rx="8" fill="#4ea8de" stroke="#1d3557" strokeWidth="2.5" />
+    {/* Screen */}
+    <rect x="8" y="10" width="49" height="34" rx="4" fill="#a8dadc" stroke="#1d3557" strokeWidth="1.5" />
+    <text x="32" y="24" textAnchor="middle" fill="#1d3557" fontFamily="'Caveat', cursive" fontSize="9" fontWeight="bold">Now Playing</text>
+    <text x="32" y="36" textAnchor="middle" fill="#1d3557" fontFamily="'Lato', sans-serif" fontSize="7">Bill Evans ♫</text>
+    {/* Click Wheel */}
+    <circle cx="32.5" cy="70" r="19" fill="#f1faee" stroke="#1d3557" strokeWidth="2" />
+    <circle cx="32.5" cy="70" r="7" fill="#4ea8de" stroke="#1d3557" strokeWidth="1.5" />
+    <text x="32.5" y="58" textAnchor="middle" fill="#1d3557" fontSize="5" fontWeight="bold">MENU</text>
+    <text x="47" y="72" textAnchor="middle" fill="#1d3557" fontSize="6">▶▶</text>
+    <text x="18" y="72" textAnchor="middle" fill="#1d3557" fontSize="6">◀◀</text>
+    <text x="32.5" y="86" textAnchor="middle" fill="#1d3557" fontSize="6">▶||</text>
+  </svg>
+);
+
+// 15. Circular Lace / Doily Cutout Frame
+export const CircularLaceFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 70 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <circle cx="50" cy="50" r="46" fill="#fffcf2" stroke="#ccc5b9" strokeWidth="1.5" strokeDasharray="4 3" />
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#eb5e28" strokeWidth="1" strokeDasharray="2 2" opacity="0.6" />
+    <circle cx="50" cy="50" r="32" fill="#fffcf2" stroke="#403d39" strokeWidth="1.5" />
+    {/* Lace scallops */}
+    {Array.from({ length: 12 }).map((_, i) => {
+      const angle = (i * 30 * Math.PI) / 180;
+      const x = 50 + Math.cos(angle) * 44;
+      const y = 50 + Math.sin(angle) * 44;
+      return <circle key={i} cx={x} cy={y} r="3" fill="#fff" stroke="#ccc5b9" strokeWidth="1" />;
+    })}
+  </svg>
+);
+
+// 16. Star Border Frame
+export const StarBorderFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="6" y="6" width="88" height="88" rx="6" fill="#fff9db" stroke="#f59f00" strokeWidth="2" strokeDasharray="6 3" />
+    <text x="15" y="20" fill="#f59f00" fontSize="12">★</text>
+    <text x="80" y="20" fill="#f59f00" fontSize="12">★</text>
+    <text x="15" y="88" fill="#f59f00" fontSize="12">★</text>
+    <text x="80" y="88" fill="#f59f00" fontSize="12">★</text>
+  </svg>
+);
+
+// 17. Red Plaid / Gingham Frame
+export const RedPlaidFrame: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 60 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="4" y="4" width="92" height="92" rx="4" fill="#fee2e2" stroke="#dc2626" strokeWidth="2.5" />
+    <line x1="4" y1="25" x2="96" y2="25" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+    <line x1="4" y1="50" x2="96" y2="50" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+    <line x1="4" y1="75" x2="96" y2="75" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+    <line x1="25" y1="4" x2="25" y2="96" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+    <line x1="50" y1="4" x2="50" y2="96" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+    <line x1="75" y1="4" x2="75" y2="96" stroke="#ef4444" strokeWidth="2" opacity="0.7" />
+  </svg>
+);
+
+// 18. Vintage Yellow Sticky Note
+export const YellowStickyNote: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 50 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M4 4 L96 4 L96 82 L82 96 L4 96 Z" fill="#fff3bf" stroke="#fcc419" strokeWidth="1.5" />
+    <path d="M82 96 L82 82 L96 82 Z" fill="#ffe066" stroke="#fcc419" strokeWidth="1.5" />
+    <line x1="16" y1="24" x2="84" y2="24" stroke="#e9ecef" strokeWidth="2" />
+    <line x1="16" y1="40" x2="84" y2="40" stroke="#e9ecef" strokeWidth="2" />
+    <line x1="16" y1="56" x2="84" y2="56" stroke="#e9ecef" strokeWidth="2" />
+  </svg>
+);
+
+// 19. Vintage Sunflower
+export const VintageSunflower: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 50 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    {Array.from({ length: 8 }).map((_, i) => {
+      const angle = (i * 45 * Math.PI) / 180;
+      const x = 50 + Math.cos(angle) * 25;
+      const y = 50 + Math.sin(angle) * 25;
+      return <circle key={i} cx={x} cy={y} r="14" fill="#fab005" opacity="0.9" />;
+    })}
+    <circle cx="50" cy="50" r="20" fill="#5c3d2e" stroke="#3e2316" strokeWidth="2" />
+  </svg>
+);
+
+// 20. Monarch Butterfly
+export const MonarchButterfly: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 48 }) => (
+  <svg width={size} height={size * 0.8} viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M50 40 C35 15 5 15 10 45 C12 60 35 65 50 45 Z" fill="#fd7e14" stroke="#212529" strokeWidth="2" />
+    <path d="M50 40 C65 15 95 15 90 45 C88 60 65 65 50 45 Z" fill="#fd7e14" stroke="#212529" strokeWidth="2" />
+    <ellipse cx="50" cy="45" rx="3" ry="18" fill="#212529" />
+    <path d="M48 28 C45 20 40 18 38 15 M52 28 C55 20 60 18 62 15" stroke="#212529" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );

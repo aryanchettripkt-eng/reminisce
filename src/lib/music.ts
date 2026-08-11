@@ -74,7 +74,16 @@ export const LOCAL_TRACKS: Track[] = [
 /**
  * Returns a guaranteed working audio URL for any track, falling back to a deterministic vintage stream.
  */
-export function getPlayableAudioUrl(track: { id?: string; title?: string; song?: string; url?: string; audioUrl?: string; uri?: string }): string {
+export function getPlayableAudioUrl(track: { 
+  id?: string; 
+  title?: string; 
+  song?: string; 
+  url?: string; 
+  audioUrl?: string;
+  uri?: string;
+  provider?: string;
+  externalUrl?: string;
+}): string {
   if (track.url && (track.url.startsWith('http://') || track.url.startsWith('https://') || track.url.startsWith('blob:'))) {
     return track.url;
   }
@@ -83,7 +92,7 @@ export function getPlayableAudioUrl(track: { id?: string; title?: string; song?:
   }
 
   // Deterministically map identifier to an authentic audio stream
-  const key = (track.id || track.title || track.song || 'music');
+  const key = (track.id || track.title || track.song || track.uri || 'music');
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
     hash = (hash << 5) - hash + key.charCodeAt(i);

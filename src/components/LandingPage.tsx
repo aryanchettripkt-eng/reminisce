@@ -179,12 +179,12 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
       </div>
 
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-sm">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-xs">
         <div className="flex items-center gap-3">
           <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
             Reminiq
           </a>
-          <span className="hidden md:inline-block font-hand text-xs text-brown/60 uppercase tracking-[0.18em] border-l border-light-brown/30 pl-3">
+          <span className="hidden md:inline-block font-hand text-xs text-brown/60 uppercase tracking-[0.18em]">
             A quiet companion for every memory
           </span>
         </div>

@@ -11,7 +11,7 @@ import {
 import { Memory, Album, DayReaction } from '../lib/groq';
 import MonthlyPinboard from './MonthlyPinboard';
 import VinylVault from './VinylVault';
-import AISearch from './AISearch';
+import AISearchView from './AISearchView';
 import InteractiveScrapbook from './InteractiveScrapbook';
 import TimelineOverlay from './TimelineOverlay';
 import AlbumDetail from './AlbumDetail';
@@ -62,8 +62,8 @@ export default function ExtraPages({
 
   if (!activeOverlay) return null;
 
-  // 1. Monthly Journal / Pinboard (Connected 12-Month Folders & Calendar Board)
-  if (activeOverlay === 'monthly-pinboard' || activeOverlay === 'calendar' || activeOverlay === 'folders') {
+  // 1. Monthly Journal / Pinboard / Folders
+  if (activeOverlay === 'monthly-pinboard' || activeOverlay === 'folders' || activeOverlay === 'calendar') {
     return (
       <MonthlyPinboard
         memories={memories}
@@ -90,25 +90,25 @@ export default function ExtraPages({
     );
   }
 
-  // 3. AI Memory Search (12 Curated Mood Categories & Llama 3.3 Semantic Search)
+  // 3. AI Memory Search
   if (activeOverlay === 'ai-search' || activeOverlay === 'try-it') {
     return (
-      <AISearch
+      <AISearchView
         memories={memories}
         onClose={onClose}
       />
     );
   }
 
-  // 4. Studio-Grade Aesthetic Scrapbook
+  // 4. Aesthetic Scrapbook
   if (activeOverlay === 'scrapbook') {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed inset-0 z-[10000] bg-[#f7f2e7]/95 backdrop-blur-2xl flex flex-col p-4 sm:p-8"
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.3 }}
+        className="fixed inset-0 z-[10000] bg-cream/95 backdrop-blur-xl flex flex-col p-4 sm:p-8"
       >
         <div className="flex items-center justify-between pb-4 max-w-7xl mx-auto w-full flex-shrink-0">
           <div>
@@ -116,12 +116,12 @@ export default function ExtraPages({
               Aesthetic Memory Scrapbook
             </h1>
             <p className="font-hand text-sm text-brown">
-              Manila binder studio with 20 vector stickers, custom typography & 8 paper canvas textures
+              Freeform digital scrapbooking with vector stickers, washi tapes & polaroid photos
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-[#eae0ce] border border-[#c4ab91]/40 flex items-center justify-center text-dark-brown hover:bg-[#c4ab91]/30 transition-transform active:scale-95 shadow-sm"
+            className="w-10 h-10 rounded-full bg-parchment/80 border border-light-brown/40 flex items-center justify-center text-dark-brown hover:bg-brown/10 transition-transform active:scale-95 shadow-sm"
           >
             <X size={20} />
           </button>
@@ -138,9 +138,9 @@ export default function ExtraPages({
   if (activeOverlay === 'timeline') {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="fixed inset-0 z-[10000] bg-zinc-950 overflow-y-auto"
       >
         <button
@@ -159,9 +159,9 @@ export default function ExtraPages({
     return (
       <motion.div
         ref={scrollRef}
-        initial={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, scale: 0.97, filter: 'blur(8px)' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
         className="fixed inset-0 z-[10000] bg-cream overflow-y-auto"
       >
         <div className="film-grain" />

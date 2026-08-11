@@ -274,7 +274,19 @@ function ReminiqApp() {
     listUserAlbums()
       .then((userAlbums) => {
         if (userAlbums.length > 0) {
-          setAlbums(userAlbums);
+          const mapped: Album[] = userAlbums.map((a) => ({
+            id: a.id,
+            title: a.title,
+            coverPhoto: a.cover_photo || undefined,
+            description: a.description || undefined,
+            memoryIds: a.memory_ids || [],
+            aestheticTone: a.aesthetic_tone || undefined,
+            dominantEmotion: a.dominant_emotion || undefined,
+            journalText: a.journal_text || undefined,
+            colorPalette: a.color_palette || undefined,
+            createdAt: a.created_at || undefined,
+          }));
+          setAlbums(mapped);
         }
       })
       .catch((err) => {
@@ -323,9 +335,13 @@ function ReminiqApp() {
       try {
         await supabaseUpdateAlbum(albumId, {
           title: data.title,
-          description: data.description || data.journalText,
-          journalText: data.journalText,
-          memoryIds: data.memoryIds,
+          description: data.description,
+          cover_photo: data.coverPhoto,
+          aesthetic_tone: data.aestheticTone,
+          dominant_emotion: data.dominantEmotion,
+          journal_text: data.journalText,
+          color_palette: data.colorPalette,
+          memory_ids: data.memoryIds,
         });
       } catch (err) {
         console.error('Failed to update album in Supabase:', err);
@@ -366,8 +382,13 @@ function ReminiqApp() {
         createAlbumsBatch(
           sorted.map(a => ({
             title: a.title,
-            memoryIds: a.memoryIds,
-            journalText: a.journalText || a.description || undefined,
+            description: a.description || null,
+            cover_photo: a.coverPhoto || null,
+            aesthetic_tone: a.aestheticTone || null,
+            dominant_emotion: a.dominantEmotion || null,
+            journal_text: a.journalText || null,
+            color_palette: a.colorPalette || [],
+            memory_ids: a.memoryIds,
           }))
         ).catch(err => console.error('Failed to save AI sorted albums:', err));
       }

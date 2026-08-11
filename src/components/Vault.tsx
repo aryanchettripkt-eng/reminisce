@@ -1288,7 +1288,7 @@ export default function Vault({
 
       {/* Top Bar */}
       <div className="fixed top-0 left-0 right-0 z-[1000] p-6 sm:p-7 flex items-center justify-between pointer-events-none">
-        <div className="flex items-center gap-3 pointer-events-auto">
+        <div className="pointer-events-auto">
           <button 
             onClick={onBack}
             className="btn-aesthetic"
@@ -1296,15 +1296,14 @@ export default function Vault({
             <ChevronLeft size={16} />
             Back to Journal
           </button>
-
-          <div className="hidden sm:flex items-center gap-2 text-xs font-body">
-            <span className="rounded-full bg-white/80 backdrop-blur-md px-3 py-1.5 border border-[#c4ab91]/40 text-dark-brown font-semibold shadow-xs">
-              ✦ {memoryCount} Moments
-            </span>
-          </div>
         </div>
-
         <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="hidden sm:flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#c4ab91]/40 shadow-sm text-xs font-hand text-brown">
+            <span>Memories: <strong className="text-dark-brown">{memoryCount}</strong></span>
+            <span>•</span>
+            <span>Mood: <strong className="text-moss capitalize">{currentMood}</strong></span>
+          </div>
+
           <div className="flex items-center bg-white/80 backdrop-blur-md p-1 rounded-full border border-[#c4ab91]/40 shadow-sm">
             <button 
               onClick={() => setSortBy('newest')}

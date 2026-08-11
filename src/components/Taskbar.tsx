@@ -1,14 +1,12 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { 
-  Sparkles, 
+  Home, 
+  Calendar, 
+  Disc, 
   BookOpen, 
   Search, 
-  Disc, 
-  Calendar, 
-  FolderHeart,
-  Home,
-  Layers
+  FolderHeart 
 } from 'lucide-react';
 
 interface TaskbarProps {
@@ -38,35 +36,35 @@ export default function Taskbar({
       id: 'monthly-pinboard',
       label: 'Monthly Journal',
       icon: Calendar,
-      action: () => onOverlayChange('monthly-pinboard'),
+      action: () => onOverlayChange(activeOverlay === 'monthly-pinboard' || activeOverlay === 'folders' ? null : 'monthly-pinboard'),
       isActive: activeOverlay === 'monthly-pinboard' || activeOverlay === 'folders' || activeOverlay === 'calendar',
     },
     {
       id: 'vinyl-vault',
       label: 'Vinyl Vault',
       icon: Disc,
-      action: () => onOverlayChange('vinyl-vault'),
+      action: () => onOverlayChange(activeOverlay === 'vinyl-vault' || activeOverlay === 'vinyl' ? null : 'vinyl-vault'),
       isActive: activeOverlay === 'vinyl-vault' || activeOverlay === 'vinyl' || activeOverlay === 'music',
     },
     {
       id: 'scrapbook',
       label: 'Scrapbook',
       icon: BookOpen,
-      action: () => onOverlayChange('scrapbook'),
+      action: () => onOverlayChange(activeOverlay === 'scrapbook' ? null : 'scrapbook'),
       isActive: activeOverlay === 'scrapbook',
     },
     {
       id: 'ai-search',
       label: 'AI Search',
       icon: Search,
-      action: () => onOverlayChange('ai-search'),
+      action: () => onOverlayChange(activeOverlay === 'ai-search' || activeOverlay === 'try-it' ? null : 'ai-search'),
       isActive: activeOverlay === 'ai-search' || activeOverlay === 'try-it',
     },
   ];
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto">
-      <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 rounded-full bg-white/90 backdrop-blur-2xl border border-[#c4ab91]/35 shadow-[0_15px_35px_rgba(69,49,39,0.15)] ring-1 ring-white/50">
+      <div className="flex items-center gap-2 p-1.5 rounded-full bg-white/90 backdrop-blur-2xl border border-light-brown/30 shadow-[0_15px_35px_rgba(69,49,39,0.15)]">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isSelected = tab.isActive;
@@ -84,13 +82,18 @@ export default function Taskbar({
               {isSelected && (
                 <motion.div
                   layoutId="taskbar-active-bg"
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-moss to-[#7a946b] z-0 shadow-inner"
-                  transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-moss to-[#7a946b] z-0"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
               <span className="relative z-10 flex items-center gap-1.5">
-                <Icon size={15} className="transition-transform group-hover:scale-110" />
+                <Icon size={15} />
                 <span className="hidden sm:inline">{tab.label}</span>
+              </span>
+
+              {/* Tooltip Badge on Mobile */}
+              <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-dark-brown text-cream text-[10px] font-hand rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap sm:hidden shadow-lg border border-white/10 z-50">
+                {tab.label}
               </span>
             </button>
           );
