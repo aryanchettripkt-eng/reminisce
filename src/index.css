@@ -269,4 +269,73 @@
     background: radial-gradient(circle at 35% 35%, #ffffff 0%, #cfcfcf 40%, #7a7a7a 100%);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.8);
   }
+
+  /* Utility & Animation Classes */
+  .no-scrollbar::-webkit-scrollbar,
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar,
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @keyframes pageMorphIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.97) translateY(8px);
+      filter: blur(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes pageMorphOut {
+    0% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.97) translateY(-8px);
+      filter: blur(8px);
+    }
+  }
+
+  @keyframes stickerFloat {
+    0%, 100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-5px) rotate(1deg);
+    }
+  }
+
+  @keyframes cardSlideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-morph-in {
+    animation: pageMorphIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-sticker-float {
+    animation: stickerFloat 4s ease-in-out infinite;
+  }
+
+  .animate-card-slide-up {
+    animation: cardSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 }
