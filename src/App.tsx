@@ -245,21 +245,21 @@ function ReminiqApp() {
     listUserMemories()
       .then((userMems) => {
         if (userMems.length > 0) {
-          const mapped: Memory[] = userMems.map((m) => ({
+          const mapped: Memory[] = userMems.map((m: any) => ({
             id: m.id,
-            type: (m.type as Memory['type']) || 'text',
-            title: m.title,
-            desc: m.desc || '',
+            type: (m.type as Memory['type']) || (m.photoUrl || m.photo_url ? 'photo' : 'text'),
+            title: m.title || 'Untitled Moment',
+            desc: m.desc || m.description || '',
             mood: m.mood || 'peaceful',
-            date: m.date || new Date().toISOString().split('T')[0],
-            photoUrl: m.photo_url || undefined,
-            audioUrl: m.audio_url || undefined,
+            date: m.date || m.memory_date || new Date().toISOString().split('T')[0],
+            photoUrl: m.photoUrl || m.photo_url || undefined,
+            audioUrl: m.audioUrl || m.audio_url || undefined,
             location: m.location || undefined,
             tags: m.tags || [],
             source: (m.source as Memory['source']) || 'local',
-            music: (m as any).music || undefined,
-            transcript: (m as any).transcript || undefined,
-            emotion: (m as any).emotion || undefined,
+            music: m.music || undefined,
+            transcript: m.transcript || undefined,
+            emotion: m.emotion || undefined,
           }));
           setMemories(mapped);
         } else {

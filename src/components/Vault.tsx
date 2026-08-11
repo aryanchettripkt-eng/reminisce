@@ -968,32 +968,90 @@ export default function Vault({
 
   const createMemoryMesh = (mem: Memory) => {
     const group = new THREE.Group();
-    if (mem.type === 'photo') {
-      // Scrapbook Polaroid
+    const photoUrl = mem.photoUrl || (mem as any).photo_url || (mem.music?.albumArt) || undefined;
+    const isPhotoOrMedia = mem.type === 'photo' || Boolean(photoUrl);
+
+    if (isPhotoOrMedia) {
+      // Scrapbook Polaroid Frame
       const back = new THREE.Mesh(
         new THREE.BoxGeometry(1.6, 2.0, 0.06), 
-        new THREE.MeshStandardMaterial({ color: 0xf2e8d5, roughness: 0.9 })
+        new THREE.MeshStandardMaterial({ 
+          color: 0xfbf7ee, 
+          roughness: 0.85,
+          metalness: 0.05 
+        })
       );
+      back.castShadow = true;
+      back.receiveShadow = true;
       group.add(back);
       
-      const photo = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.4, 1.4), 
-        new THREE.MeshStandardMaterial({ color: 0x333333 })
-      );
-      if (mem.photoUrl) {
-        const tex = new THREE.TextureLoader().load(mem.photoUrl);
-        photo.material = new THREE.MeshStandardMaterial({ map: tex });
+      const photoGeom = new THREE.PlaneGeometry(1.4, 1.4);
+      const defaultPhotoMat = new THREE.MeshStandardMaterial({ 
+        color: 0xdfd5c2,
+        roughness: 0.5,
+        metalness: 0.0,
+        side: THREE.DoubleSide 
+      });
+      const photo = new THREE.Mesh(photoGeom, defaultPhotoMat);
+      
+      if (photoUrl) {
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+        loader.load(
+          photoUrl,
+          (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.minFilter = THREE.LinearFilter;
+            tex.generateMipmaps = true;
+            photo.material = new THREE.MeshStandardMaterial({ 
+              map: tex,
+              roughness: 0.35,
+              metalness: 0.02,
+              side: THREE.DoubleSide
+            });
+            (photo.material as THREE.Material).needsUpdate = true;
+          },
+          undefined,
+          (err) => {
+            console.warn('Three.js texture load notice for memory photo:', photoUrl, err);
+          }
+        );
       }
       photo.position.set(0, 0.2, 0.035);
       group.add(photo);
 
-      // Washi tape at top
+      // Back-facing photo so it is visible from behind when rotating
+      const backPhoto = new THREE.Mesh(photoGeom, defaultPhotoMat.clone());
+      if (photoUrl) {
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+        loader.load(photoUrl, (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearFilter;
+          backPhoto.material = new THREE.MeshStandardMaterial({ 
+            map: tex,
+            roughness: 0.35,
+            metalness: 0.02,
+            side: THREE.DoubleSide
+          });
+        });
+      }
+      backPhoto.position.set(0, 0.2, -0.035);
+      backPhoto.rotation.y = Math.PI;
+      group.add(backPhoto);
+
+      // Cute Washi tape at top
       const tape = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.6, 0.2),
-        new THREE.MeshStandardMaterial({ color: 0xc9a0a0, transparent: true, opacity: 0.8 })
+        new THREE.PlaneGeometry(0.65, 0.22),
+        new THREE.MeshStandardMaterial({ 
+          color: 0xd4a5a5, 
+          transparent: true, 
+          opacity: 0.88,
+          side: THREE.DoubleSide
+        })
       );
       tape.position.set(0, 0.95, 0.04);
-      tape.rotation.z = Math.random() * 0.2 - 0.1;
+      tape.rotation.z = (Math.random() - 0.5) * 0.25;
       group.add(tape);
     } else {
       // Torn paper note
@@ -1001,18 +1059,20 @@ export default function Vault({
         new THREE.BoxGeometry(1.8, 2.2, 0.04), 
         new THREE.MeshStandardMaterial({ color: 0xe6dcc5, roughness: 0.8 })
       );
+      note.castShadow = true;
+      note.receiveShadow = true;
       group.add(note);
       
       // Scribble lines
       const lineGeom = new THREE.PlaneGeometry(1.4, 0.02);
-      const lineMat = new THREE.MeshBasicMaterial({ color: 0x4a342a, opacity: 0.3, transparent: true });
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0x4a342a, opacity: 0.3, transparent: true, side: THREE.DoubleSide });
       for (let i = 0; i < 5; i++) {
         const line = new THREE.Mesh(lineGeom, lineMat);
         line.position.set(0, 0.6 - i * 0.3, 0.021);
         group.add(line);
       }
     }
-    group.scale.setScalar(0.72);
+    group.scale.setScalar(0.75);
     group.userData.memoryId = mem.id;
     return group;
   };
