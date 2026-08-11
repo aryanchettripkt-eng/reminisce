@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, Music, ExternalLink } from 'lucide-react';
+import { getPlayableAudioUrl } from '../lib/music';
 
 interface MusicPlayerProps {
   song: string;
@@ -28,15 +29,20 @@ export default function MusicPlayer({
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const playableAudio = audioUrl || getPlayableAudioUrl({ song, title: song, uri, url: audioUrl });
   const isSpotify = provider === 'spotify' || Boolean(externalUrl && externalUrl.includes('spotify.com')) || Boolean(uri && uri.startsWith('spotify:'));
   const spotifyLink = externalUrl || (uri ? `https://open.spotify.com/track/${uri.replace('spotify:track:', '')}` : undefined);
 
   useEffect(() => {
-    if (autoPlay && audioUrl) {
-      setIsPlaying(true);
-      audioRef.current?.play().catch(() => setIsPlaying(false));
+    if (autoPlay && playableAudio && audioRef.current) {
+      audioRef.current.src = playableAudio;
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        setIsPlaying(false);
+      });
     }
-  }, [audioUrl, autoPlay]);
+  }, [playableAudio, autoPlay]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -62,25 +68,27 @@ export default function MusicPlayer({
   }, []);
 
   const togglePlay = () => {
-    if (isSpotify && spotifyLink) {
-      window.open(spotifyLink, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      if (!audioRef.current.src || audioRef.current.src === '' || audioRef.current.src.includes('undefined')) {
+        audioRef.current.src = playableAudio;
+      }
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((e) => {
+        console.warn("Playback error:", e);
+      });
     }
-    setIsPlaying(!isPlaying);
   };
 
   return (
-    <div className="bg-black/40 backdrop-blur-md p-4 rounded-3xl border border-white/10 flex items-center gap-4 group">
-      {audioUrl && <audio ref={audioRef} src={audioUrl} />}
+    <div className="bg-[#fcfaf7] p-4 rounded-2xl border-2 border-[#2c241e]/20 flex items-center gap-4 group shadow-sm">
+      <audio ref={audioRef} src={playableAudio} preload="auto" />
       
-      <div className="relative w-16 h-16 rounded-xl overflow-hidden shadow-lg flex-shrink-0 bg-zinc-900 border border-white/5">
+      <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-sm flex-shrink-0 bg-[#2c241e]/10 border border-[#2c241e]/20">
         {albumArt ? (
           <img
             src={albumArt}
@@ -88,60 +96,59 @@ export default function MusicPlayer({
             className={`w-full h-full object-cover transition-transform duration-[5s] linear ${isPlaying ? 'scale-110 rotate-6' : ''}`}
           />
         ) : (
-          <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-            <Music size={24} className="text-white/20" />
+          <div className="w-full h-full bg-[#dfb141]/20 flex items-center justify-center">
+            <Music size={22} className="text-[#2c241e]/60" />
           </div>
         )}
         <button 
           onClick={togglePlay}
-          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-          title={isSpotify ? 'Open & Play on Spotify' : (isPlaying ? 'Pause' : 'Play')}
+          className="absolute inset-0 bg-[#2c241e]/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
+          title={isPlaying ? 'Pause' : 'Play Sound'}
         >
-          {isSpotify ? (
-            <ExternalLink size={20} className="text-white" />
-          ) : isPlaying ? (
-            <Pause size={24} className="text-white" />
-          ) : (
-            <Play size={24} className="text-white fill-white" />
-          )}
+          {isPlaying ? <Pause size={18} /> : <Play size={18} className="fill-white" />}
         </button>
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-white font-serif italic text-lg truncate">{song}</div>
-        <div className="text-white/50 font-hand text-sm truncate">
-          {artist} {album && <span className="opacity-70">• {album}</span>}
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-serif font-bold text-[#1e1b18] text-sm truncate">{song}</h4>
+          {isSpotify && (
+            <span className="text-[9px] font-body uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-[#dfb141] text-[#1e1b18] flex-shrink-0">
+              Spotify
+            </span>
+          )}
         </div>
+        <p className="text-xs font-body text-[#2c241e]/70 truncate">{artist}</p>
         
-        {audioUrl ? (
-          <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-moss transition-all duration-300" 
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        ) : isSpotify && spotifyLink ? (
-          <div className="mt-2 flex items-center gap-2">
-            <a
-              href={spotifyLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1DB954]/20 hover:bg-[#1DB954]/30 border border-[#1DB954]/40 text-[#1DB954] font-hand text-[11px] uppercase tracking-wider transition-all"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] animate-pulse" />
-              Play on Spotify
-              <ExternalLink size={10} />
-            </a>
-          </div>
-        ) : null}
+        {/* Progress Bar */}
+        <div className="w-full bg-[#2c241e]/10 h-1 rounded-full mt-2 overflow-hidden">
+          <div
+            className="bg-[#dfb141] h-full transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       </div>
 
-      <div className="flex-shrink-0">
-        {audioUrl ? (
-          <Volume2 size={16} className="text-white/20" />
-        ) : isSpotify ? (
-          <span className="text-[10px] font-hand text-white/30 tracking-widest uppercase">Spotify</span>
-        ) : null}
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <button
+          onClick={togglePlay}
+          className="w-8 h-8 rounded-full bg-[#2c241e] text-[#f4efe4] flex items-center justify-center hover:bg-[#1a1410] transition-transform active:scale-95 shadow-xs"
+          title={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? <Pause size={14} /> : <Play size={14} className="fill-[#f4efe4]" />}
+        </button>
+
+        {spotifyLink && (
+          <a
+            href={spotifyLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-8 h-8 rounded-full bg-[#f4efe4] border border-[#2c241e]/30 flex items-center justify-center text-[#2c241e] hover:bg-white transition-all shadow-xs"
+            title="Open in Spotify"
+          >
+            <ExternalLink size={13} />
+          </a>
+        )}
       </div>
     </div>
   );
