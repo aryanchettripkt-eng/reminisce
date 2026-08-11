@@ -16,57 +16,56 @@ import {
   Sparkles
 } from 'lucide-react';
 import { searchMemories, Memory } from '../lib/groq';
+import { useAuth, runGooglePhotosImportFlow } from '../services/supabase';
 
 interface LandingPageProps {
   onEnterVault: () => void;
   memories: Memory[];
+  onAddMemory?: (memory: Memory) => void;
 }
 
-export default function LandingPage({ onEnterVault, memories }: LandingPageProps) {
+export default function LandingPage({ onEnterVault, memories, onAddMemory }: LandingPageProps) {
+  const { user, signInWithGoogle, signOut, isLoading: isAuthLoading } = useAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [demoQuery, setDemoQuery] = useState('');
   const [demoResult, setDemoResult] = useState<{ intro: string; memoryId: string | null } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
-
-      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        const token = event.data.token;
-        handleSyncPhotos(token);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const handleSyncPhotos = async (token: string) => {
-    setIsSyncing(true);
-    try {
-      const response = await fetch('/api/photos', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch photos');
-      const data = await response.json();
-      console.log('Synced photos:', data);
-      alert('Successfully synced your Google Photos! They are now being woven into your journal.');
-    } catch (error) {
-      console.error('Sync Error:', error);
-      alert('Failed to sync photos. Please try again.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   const startGoogleSync = async () => {
+    if (!user) {
+      alert('Please sign in to Reminiq first.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncStatus('Connecting...');
     try {
-      const response = await fetch('/api/auth/google/url');
-      const { url } = await response.json();
-      window.open(url, 'google_auth', 'width=600,height=700');
-    } catch (error) {
-      console.error('Auth URL Error:', error);
+      const result = await runGooglePhotosImportFlow({
+        onStatusChange: (status) => setSyncStatus(status),
+      });
+
+      if (result.imported.length > 0) {
+        if (onAddMemory) {
+          for (const mem of result.imported) {
+            onAddMemory(mem);
+          }
+        }
+        alert(`Successfully imported ${result.imported.length} photo${result.imported.length > 1 ? 's' : ''} from Google Photos!`);
+      } else if (result.duplicates.length > 0) {
+        alert('Selected photos have already been imported into Reminiq.');
+      } else if (result.unsupported.length > 0) {
+        alert('Some items were skipped (videos are not currently supported).');
+      }
+    } catch (error: any) {
+      if (!error.message?.includes('cancelled')) {
+        console.error('Import Error:', error);
+        alert(error.message || 'Failed to import photos from Google Photos.');
+      }
+    } finally {
+      setIsSyncing(false);
+      setSyncStatus(null);
     }
   };
 
@@ -185,6 +184,48 @@ export default function LandingPage({ onEnterVault, memories }: LandingPageProps
           Reminiq
         </a>
         <span className="font-hand text-sm text-brown/60 uppercase tracking-[0.18em]">A quiet companion for every memory</span>
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px]">
+        <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
+          Reminiq
+        </a>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <div className="flex items-center gap-3 bg-parchment/80 border border-light-brown/20 rounded-full px-4 py-1.5 backdrop-blur-md shadow-sm">
+              <span className="font-hand text-sm text-brown max-w-[180px] truncate">
+                {user.email || (user.user_metadata as any)?.full_name || 'Signed In'}
+              </span>
+              <button
+                onClick={() => signOut()}
+                className="font-hand text-xs text-dusty-rose hover:text-dark-brown underline transition-colors cursor-pointer"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={async () => {
+                setIsSigningIn(true);
+                try {
+                  await signInWithGoogle();
+                } catch (e) {
+                  console.error('Google Sign In failed:', e);
+                } finally {
+                  setIsSigningIn(false);
+                }
+              }}
+              disabled={isSigningIn || isAuthLoading}
+              className="px-4 py-1.5 bg-parchment/90 hover:bg-cream border border-light-brown/30 rounded-full font-hand text-sm text-dark-brown shadow-sm transition-all hover:scale-105 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              {isSigningIn ? 'Connecting...' : 'Sign in with Google'}
+            </button>
+          )}
+        </div>
       </nav>
 
       {/* Hero */}
@@ -300,7 +341,7 @@ export default function LandingPage({ onEnterVault, memories }: LandingPageProps
               className="btn-tactile px-9 py-4 bg-white/95 backdrop-blur-md text-dark-brown font-hand text-xl tracking-wider rounded-full border border-light-brown/30 shadow-lg hover:bg-white disabled:opacity-50 flex items-center gap-3"
             >
               <Camera size={22} className={isSyncing ? "animate-spin opacity-70" : "opacity-70"} />
-              {isSyncing ? "Syncing..." : "Sync Google Photos"}
+              {isSyncing ? (syncStatus || "Importing...") : "Import from Google Photos"}
             </motion.button>
           </div>
         </div>

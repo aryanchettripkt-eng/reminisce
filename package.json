@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx watch server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.ts",
@@ -12,6 +12,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.2",
     "@tailwindcss/vite": "^4.1.14",
     "@types/cookie-session": "^2.0.49",
     "@types/three": "^0.183.1",
