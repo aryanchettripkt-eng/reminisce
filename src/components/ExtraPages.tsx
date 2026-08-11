@@ -13,6 +13,8 @@ import MonthlyPinboard from './MonthlyPinboard';
 import VinylVault from './VinylVault';
 import AISearchView from './AISearchView';
 import InteractiveScrapbook from './InteractiveScrapbook';
+import VinylVault from './VinylVault';
+import MonthlyFolders from './MonthlyFolders';
 import TimelineOverlay from './TimelineOverlay';
 import AlbumDetail from './AlbumDetail';
 
@@ -52,6 +54,8 @@ export default function ExtraPages({
   onSortAlbums,
   isSorting,
   onAddMemoryAtDate,
+  spotifyToken,
+  onConnectSpotify
   spotifyToken = null,
   onConnectSpotify = () => {}
 }: ExtraPagesProps) {
@@ -272,6 +276,22 @@ export default function ExtraPages({
                               <h3 className="font-serif font-bold text-dark-brown text-xl truncate">{album.title}</h3>
                             )}
 
+        {(activeOverlay === 'vinyl' || activeOverlay === 'music') && (
+          <VinylVault 
+            memories={memories} 
+            spotifyToken={spotifyToken || null} 
+            onConnectSpotify={onConnectSpotify || (() => {})} 
+          />
+        )}
+
+        {activeOverlay === 'folders' && (
+          <MonthlyFolders 
+            memories={memories} 
+            onAddMemoryAtDate={onAddMemoryAtDate} 
+            onDeleteMemory={onDeleteMemory} 
+          />
+        )}
+      </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

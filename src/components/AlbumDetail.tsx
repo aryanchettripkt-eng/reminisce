@@ -83,15 +83,19 @@ export default function AlbumDetail({ album, memories, onBack, onUpdateAlbum }: 
       className="fixed inset-0 z-[8000] bg-cream flex flex-col md:flex-row overflow-hidden"
     >
       {/* Left Side: Photo Grid */}
-      <div className="w-full md:w-1/2 h-full flex flex-col border-r border-light-brown/20 bg-warm-white/30">
-        <div className="p-8 pb-4 flex items-center justify-between">
-        <div className="flex bg-parchment/80 border border-light-brown/20 rounded-full p-0.5 backdrop-blur-md shadow-sm">
-          <button onClick={onBack} className="px-4 py-1.5 rounded-full flex items-center gap-2 font-hand text-sm text-brown/60 hover:bg-brown/10 hover:text-dark-brown transition-all">
-            <ChevronLeft size={18} />
-            back to albums
-          </button>
-        </div>
+      <div className="w-full md:w-1/2 h-full flex flex-col border-r border-light-brown/20 bg-warm-white/30 glass-card">
+        <div className="p-8 pb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 bg-parchment/80 border border-light-brown/20 rounded-full p-0.5 backdrop-blur-md shadow-sm">
+            <button onClick={onBack} className="px-4 py-1.5 rounded-full flex items-center gap-2 font-hand text-sm text-brown/60 hover:bg-brown/10 hover:text-dark-brown transition-all">
+              <ChevronLeft size={18} />
+              back to albums
+            </button>
+          </div>
           <div className="font-serif text-xl text-dark-brown italic">{album.title}</div>
+        </div>
+        <div className="px-8 pb-4 text-sm text-brown/60 flex flex-wrap gap-3">
+          <span>{albumMemories.length} moments</span>
+          <span>{linkedMemoryIds.length} linked</span>
         </div>
         
         <div className="flex-1 overflow-y-auto p-8 pt-4">
@@ -141,7 +145,7 @@ export default function AlbumDetail({ album, memories, onBack, onUpdateAlbum }: 
       </div>
 
       {/* Right Side: Journal Panel */}
-      <div className="w-full md:w-1/2 h-full flex flex-col bg-cream relative">
+      <div className="w-full md:w-1/2 h-full flex flex-col bg-cream/95 relative glass-card border border-light-brown/20 shadow-cozy">
         {/* Paper Texture Overlay */}
         <div className="absolute inset-0 pointer-events-none opacity-40 mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23n)\' opacity=\'0.1\'/%3E%3C/svg%3E")' }} />
         
@@ -164,15 +168,17 @@ export default function AlbumDetail({ album, memories, onBack, onUpdateAlbum }: 
 
         <div className="flex-1 overflow-y-auto p-8 pt-4 relative z-10">
           {/* Journal Text Area */}
-          <div className="relative min-h-[400px] bg-[repeating-linear-gradient(to_bottom,transparent_0px,transparent_31px,rgba(196,168,130,0.2)_31px,rgba(196,168,130,0.2)_32px)] pl-12 before:content-[''] before:absolute before:left-8 before:top-0 before:bottom-0 before:w-[1px] before:bg-dusty-rose/30">
+          <div className="relative min-h-[400px] bg-[repeating-linear-gradient(to_bottom,transparent_0px,transparent_31px,rgba(196,168,130,0.2)_31px,rgba(196,168,130,0.2)_32px)] pl-12 before:content-[''] before:absolute before:left-8 before:top-0 before:bottom-0 before:w-[1px] before:bg-dusty-rose/30 rounded-3xl overflow-hidden shadow-inner">
             <textarea 
               value={journalText}
               onChange={handleTextChange}
               placeholder="Write your thoughts about this collection of moments..."
-              className="w-full h-full bg-transparent border-none outline-none font-hand text-xl text-ink leading-[2rem] resize-none placeholder:text-brown/30"
+              className="w-full h-full bg-transparent border-none outline-none font-hand text-xl text-ink leading-[2rem] resize-none placeholder:text-brown/30 p-8"
               rows={15}
             />
           </div>
+
+          <div className="mt-4 mb-6 text-sm text-brown/60">Linked moments will appear in the journal and stay grouped with this album.</div>
 
           {/* Album Memories Gallery (Cozy Bottom Section) */}
           {albumMemories.length > 0 && (

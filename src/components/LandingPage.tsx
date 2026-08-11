@@ -179,6 +179,11 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
       </div>
 
       {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-5 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-sm">
+        <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
+          Reminiq
+        </a>
+        <span className="font-hand text-sm text-brown/60 uppercase tracking-[0.18em]">A quiet companion for every memory</span>
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px]">
         <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
           Reminiq
@@ -225,7 +230,6 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
 
       {/* Hero */}
       <section id="hero" className="min-h-screen flex flex-col items-center justify-center px-5 py-20 bg-[radial-gradient(ellipse_at_30%_40%,rgba(232,216,144,0.25)_0%,transparent_60%),radial-gradient(ellipse_at_70%_60%,rgba(201,160,160,0.2)_0%,transparent_55%),radial-gradient(ellipse_at_50%_20%,rgba(138,158,123,0.15)_0%,transparent_50%),var(--color-warm-white)] text-center overflow-hidden relative">
-        {/* Decorative Desk Clutter */}
         <motion.div 
           initial={{ opacity: 0, rotate: -15, x: -100 }}
           animate={{ opacity: 1, rotate: -5, x: 0 }}
@@ -273,7 +277,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
           stay curious
         </motion.div>
 
-        <div className="relative px-20 py-15 max-w-[700px] z-20">
+        <div className="relative glass-card border border-light-brown/20 shadow-[0_30px_80px_rgba(74,52,42,0.12)] px-8 py-12 sm:px-12 sm:py-16 max-w-[780px] mx-auto z-20">
           {/* Torn paper edge top */}
           <div className="absolute top-[-8px] left-[-4px] right-[-4px] h-5 bg-warm-white torn-edge-top z-10" />
           
@@ -317,13 +321,13 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
             className="absolute top-[80%] right-[25%] w-3 h-3 rounded-full bg-moss blur-[2px] pointer-events-none"
           />
 
-          <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 justify-center items-center relative z-10">
+          <div className="flex flex-col sm:flex-row gap-5 justify-center items-center relative z-10">
             <motion.button 
               onClick={onEnterVault}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.9 }}
-              className="inline-block px-12 py-4 bg-moss text-cream font-hand text-xl tracking-wider rounded-[3px] relative transition-all hover:bg-dark-brown hover:translate-x-[-3px] hover:translate-y-[-3px] shadow-[4px_4px_0_var(--color-light-brown),8px_8px_0_rgba(138,158,123,0.2)] hover:shadow-[6px_6px_0_var(--color-light-brown),12px_12px_0_rgba(138,158,123,0.2)]"
+              className="btn-tactile px-10 py-4 bg-moss text-cream font-hand text-xl tracking-wider rounded-full shadow-xl hover:bg-dark-brown"
             >
               ✦ Open the Journal ✦
             </motion.button>
@@ -334,7 +338,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.0 }}
-              className="inline-flex items-center justify-center gap-3 px-12 py-4 bg-white/90 backdrop-blur-sm text-dark-brown font-hand text-xl tracking-wider rounded-[3px] border border-light-brown/20 transition-all hover:bg-cream hover:translate-x-[-3px] hover:translate-y-[-3px] shadow-[4px_4px_0_var(--color-light-brown),8px_8px_0_rgba(138,158,123,0.05)] hover:shadow-[6px_6px_0_var(--color-light-brown),12px_12px_0_rgba(138,158,123,0.1)] disabled:opacity-50"
+              className="btn-tactile px-9 py-4 bg-white/95 backdrop-blur-md text-dark-brown font-hand text-xl tracking-wider rounded-full border border-light-brown/30 shadow-lg hover:bg-white disabled:opacity-50 flex items-center gap-3"
             >
               <Camera size={22} className={isSyncing ? "animate-spin opacity-70" : "opacity-70"} />
               {isSyncing ? (syncStatus || "Importing...") : "Import from Google Photos"}
