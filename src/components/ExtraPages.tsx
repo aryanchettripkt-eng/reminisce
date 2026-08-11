@@ -71,6 +71,7 @@ export default function ExtraPages({
         onUpdateDayReaction={onUpdateDayReaction}
         onClose={onClose}
         onAddMemoryAtDate={onAddMemoryAtDate}
+        onAddMemory={onAddMemory}
         onDeleteMemory={onDeleteMemory}
       />
     );
