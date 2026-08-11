@@ -394,6 +394,7 @@ function ReminiqApp() {
             activeOverlay={activeOverlay} 
             onClose={() => setActiveOverlay(null)} 
             memories={memories}
+            onAddMemory={addMemory}
             onDeleteMemory={deleteMemory}
             albums={albums}
             onUpdateAlbums={updateAlbums}
@@ -405,6 +406,8 @@ function ReminiqApp() {
             onSortAlbums={handleSortIntoAlbums}
             isSorting={isSorting}
             onAddMemoryAtDate={handleAddMemoryAtDate}
+            spotifyToken={spotifyToken}
+            onConnectSpotify={connectSpotify}
           />
         )}
       </AnimatePresence>
