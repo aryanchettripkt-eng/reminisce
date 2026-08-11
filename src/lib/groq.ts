@@ -235,6 +235,9 @@ Return exactly this structure:
   }
 }
 
+// Shared module-level vision cache across sorting and search
+const visionCache: Record<string, VisualAnalysis> = {};
+
 // ─────────────────────────────────────────────────────────────
 // sortMemoriesIntoAlbums — 3-pass: see → analyse → group
 // ─────────────────────────────────────────────────────────────
@@ -246,22 +249,23 @@ export async function sortMemoriesIntoAlbums(memories: Memory[]): Promise<Album[
 
   // ── PASS 0: Vision — actually look at each photo ─────────────
   const photoMemories = memories.filter(m => m.type === 'photo' && m.photoUrl);
+  const unanalyzedPhotos = photoMemories.filter(m => !visionCache[m.id]);
 
   // Run vision analysis in parallel (max 5 at a time to avoid rate limits)
-  const visionResults: VisualAnalysis[] = [];
   const BATCH = 5;
-  for (let i = 0; i < photoMemories.length; i += BATCH) {
-    const batch = photoMemories.slice(i, i + BATCH);
+  for (let i = 0; i < unanalyzedPhotos.length; i += BATCH) {
+    const batch = unanalyzedPhotos.slice(i, i + BATCH);
     const results = await Promise.allSettled(
       batch.map(m => analysePhotoWithVision(apiKey, m))
     );
     for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) visionResults.push(r.value);
+      if (r.status === 'fulfilled' && r.value) {
+        visionCache[r.value.id] = r.value;
+      }
     }
   }
 
-  const visionMap: Record<string, VisualAnalysis> = {};
-  for (const v of visionResults) visionMap[v.id] = v;
+  const visionMap = visionCache;
 
   // ── PASS 1: Semantic tagging for non-photo memories ──────────
   const nonPhotoMemories = memories.filter(m => !visionMap[m.id]);
@@ -384,46 +388,157 @@ Return JSON:
 }
 
 // ─────────────────────────────────────────────────────────────
-// searchMemories
+// searchMemories — Groq AI Visual & Semantic Search Engine
 // ─────────────────────────────────────────────────────────────
 
-export async function searchMemories(query: string, memories: Memory[]) {
-  if (memories.length === 0) return null;
+export async function searchMemories(
+  query: string, 
+  memories: Memory[]
+): Promise<{ memories: Memory[]; message: string }> {
+  if (memories.length === 0) {
+    return {
+      memories: [],
+      message: "No moments in your memory vault to search through yet."
+    };
+  }
 
-  const apiKey = getGroqKey();
+  let apiKey: string | null = null;
+  try {
+    apiKey = getGroqKey();
+  } catch (e) {
+    console.warn("Groq key not present, using local semantic fallback:", e);
+  }
 
-  const memoryContext = memories.map(m => ({
-    id: m.id, title: m.title, desc: m.desc,
-    type: m.type, mood: m.mood, location: m.location,
-  }));
+  // 1. Pass 0: Vision analysis for any unanalyzed photos (batches of 5)
+  if (apiKey) {
+    const photoMemoriesToAnalyse = memories.filter(
+      m => m.type === 'photo' && m.photoUrl && !visionCache[m.id]
+    );
 
-  const systemPrompt = `You are the librarian of "Reminiq", a personal memory journal app.
+    const BATCH = 5;
+    for (let i = 0; i < photoMemoriesToAnalyse.length; i += BATCH) {
+      const batch = photoMemoriesToAnalyse.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        batch.map(m => analysePhotoWithVision(apiKey!, m))
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) {
+          visionCache[r.value.id] = r.value;
+        }
+      }
+    }
+  }
+
+  // 2. Build enriched context with vision signals + metadata
+  const memoryContext = memories.map(m => {
+    const vision = visionCache[m.id];
+    if (vision) {
+      return {
+        id: m.id,
+        title: m.title,
+        desc: m.desc,
+        type: m.type,
+        mood: m.mood,
+        location: m.location || 'Unknown',
+        date: m.date,
+        visualTone: vision.visualTone,
+        lighting: vision.lighting,
+        colors: vision.colors,
+        setting: vision.setting,
+        weather: vision.weather,
+        subjects: vision.subjects,
+        visualMood: vision.mood
+      };
+    }
+    return {
+      id: m.id,
+      title: m.title,
+      desc: m.desc,
+      type: m.type,
+      mood: m.mood,
+      location: m.location || 'Unknown',
+      date: m.date
+    };
+  });
+
+  if (apiKey) {
+    const systemPrompt = `You are the thoughtful librarian of "Reminisce", a nostalgic personal memory journal app.
+Your mission is to find all memories that correspond to the user's natural language inquiry based on visual tone, lighting, subjects, feelings, places, and descriptions.
 Always respond with valid JSON only — no markdown, no extra text.`;
 
-  const userPrompt = `A user is searching for a memory with the query: "${query}".
+    const userPrompt = `Search query: "${query}"
 
-Memories:
+Vault Memories (with visual analysis):
 ${JSON.stringify(memoryContext, null, 2)}
 
-Return:
+Return JSON:
 {
-  "intro": "A poetic, nostalgic one-sentence introduction to the memory you found.",
-  "memoryId": "the-matching-id"
+  "message": "A warm, poetic 1-2 sentence description introducing the found memories and why they match.",
+  "matchedIds": ["id1", "id2", "..."] // ordered from most relevant to least relevant
 }
 
-If nothing matches:
+If no memories match:
 {
-  "intro": "I couldn't find that specific moment, but your vault is still full of stories.",
-  "memoryId": null
+  "message": "I searched through your vault, but couldn't find memories matching this exact feeling.",
+  "matchedIds": []
 }`;
 
-  try {
-    const text = await groqChat(apiKey, systemPrompt, userPrompt, true);
-    return parseJsonSafe(text);
-  } catch (error: any) {
-    console.error("Groq search error:", error);
-    throw error;
+    try {
+      const text = await groqChat(apiKey, systemPrompt, userPrompt, true);
+      const parsed = parseJsonSafe(text);
+      const matchedIds: string[] = Array.isArray(parsed?.matchedIds) 
+        ? parsed.matchedIds 
+        : parsed?.memoryId 
+          ? [parsed.memoryId] 
+          : [];
+
+      const matchedMemories = matchedIds
+        .map(id => memories.find(m => m.id === id))
+        .filter((m): m is Memory => Boolean(m));
+
+      if (matchedMemories.length > 0) {
+        return {
+          memories: matchedMemories,
+          message: parsed.message || parsed.intro || `Found ${matchedMemories.length} moment${matchedMemories.length > 1 ? 's' : ''} reflecting your inquiry.`
+        };
+      }
+    } catch (e) {
+      console.warn("Groq search error, falling back to semantic ranking:", e);
+    }
   }
+
+  // Safe fallback: Local semantic ranking
+  const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  const scored = memories.map(m => {
+    let score = 0;
+    const vision = visionCache[m.id];
+    const textToMatch = [
+      m.title,
+      m.desc,
+      m.mood,
+      m.location,
+      m.tags?.join(' '),
+      vision ? `${vision.visualTone} ${vision.lighting} ${vision.setting} ${vision.colors} ${vision.subjects} ${vision.mood}` : ''
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    tokens.forEach(token => {
+      if (textToMatch.includes(token)) score += 1;
+    });
+
+    return { memory: m, score };
+  });
+
+  const matched = scored
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(s => s.memory);
+
+  return {
+    memories: matched.length > 0 ? matched : memories.slice(0, 4),
+    message: matched.length > 0 
+      ? `Found ${matched.length} memory moment${matched.length > 1 ? 's' : ''} matching "${query}".`
+      : `No exact matches for "${query}", but here are some moments from your vault.`
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
