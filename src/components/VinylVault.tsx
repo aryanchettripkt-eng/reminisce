@@ -23,7 +23,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Memory, Album } from '../lib/groq';
-import { LOCAL_TRACKS, Track } from '../lib/music';
+import { LOCAL_TRACKS, Track, getPlayableAudioUrl } from '../lib/music';
 import { 
   getSpotifyPlaylists, 
   getPlaylistItems, 
@@ -31,7 +31,8 @@ import {
   searchSpotifyTracks, 
   isSpotifyConnected, 
   getSpotifyProfile,
-  disconnectSpotify as disconnectSpotifyService
+  disconnectSpotify as disconnectSpotifyService,
+  connectSpotify as connectSpotifyService
 } from '../services/supabase/spotifyService';
 import { SpotifyPlaylistSummary, SpotifyTrackItem } from '../types/storage';
 
@@ -219,12 +220,40 @@ export default function VinylVault({
     }
   };
 
-  const playTrack = (track: { title: string; artist: string; albumArt?: string; url?: string; externalUrl?: string; provider?: string }) => {
-    setCurrentTrack(track);
+  const playTrack = (track: { 
+    id?: string;
+    title: string; 
+    artist: string; 
+    albumArt?: string; 
+    url?: string; 
+    audioUrl?: string;
+    externalUrl?: string; 
+    uri?: string;
+    provider?: string; 
+  }) => {
+    const playableUrl = getPlayableAudioUrl({
+      id: track.id,
+      title: track.title,
+      url: track.url,
+      audioUrl: track.audioUrl
+    });
+
+    const enrichedTrack = {
+      ...track,
+      url: playableUrl
+    };
+
+    setCurrentTrack(enrichedTrack);
     setIsPlaying(true);
-    if (track.url && audioRef.current) {
-      audioRef.current.src = track.url;
-      audioRef.current.play().catch(() => setIsPlaying(false));
+
+    if (audioRef.current) {
+      audioRef.current.src = playableUrl;
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.warn("Audio play warning:", err);
+      });
     }
   };
 
@@ -234,8 +263,15 @@ export default function VinylVault({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
-      setIsPlaying(true);
+      const activeUrl = currentTrack.url || getPlayableAudioUrl(currentTrack);
+      if (!audioRef.current.src || audioRef.current.src === '' || audioRef.current.src.includes('undefined')) {
+        audioRef.current.src = activeUrl;
+      }
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((e) => {
+        console.warn("Playback error:", e);
+      });
     }
   };
 
@@ -246,10 +282,11 @@ export default function VinylVault({
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[10000] bg-[#f4efe4] text-[#1e1b18] flex flex-col overflow-hidden font-body"
     >
-      {/* Hidden audio player */}
+      {/* Real-time Audio Stream Element */}
       <audio
         ref={audioRef}
         src={currentTrack.url}
+        preload="auto"
         onTimeUpdate={() => {
           if (audioRef.current && audioRef.current.duration) {
             setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
@@ -548,10 +585,13 @@ export default function VinylVault({
                       key={mem.id}
                       whileHover={{ scale: 1.03, y: -4 }}
                       onClick={() => playTrack({
+                        id: mem.id,
                         title: trackData.song,
                         artist: trackData.artist,
                         albumArt: trackData.albumArt || mem.photoUrl,
-                        externalUrl: trackData.externalUrl,
+                        audioUrl: mem.audioUrl,
+                        externalUrl: trackData.externalUrl || mem.musicUrl,
+                        uri: trackData.uri,
                         provider: trackData.provider || 'spotify'
                       })}
                       className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
@@ -700,10 +740,12 @@ export default function VinylVault({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     playTrack({
+                                      id: track.id,
                                       title: track.name,
                                       artist: track.artists,
                                       albumArt: track.albumArt,
                                       externalUrl: track.externalUrl,
+                                      uri: track.uri,
                                       provider: 'spotify'
                                     });
                                   }}
@@ -814,10 +856,12 @@ export default function VinylVault({
                           onClick={(e) => {
                             e.stopPropagation();
                             playTrack({
+                              id: track.id,
                               title: track.name,
                               artist: track.artists,
                               albumArt: track.albumArt,
                               externalUrl: track.externalUrl,
+                              uri: track.uri,
                               provider: 'spotify'
                             });
                           }}

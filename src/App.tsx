@@ -14,12 +14,16 @@ import {
   updateAlbum as supabaseUpdateAlbum,
   deleteAlbum as supabaseDeleteAlbum
 } from './services/supabase';
+import { 
+  connectSpotify as connectSpotifyService, 
+  getSavedSpotifyAuthTicket 
+} from './services/supabase/spotifyService';
 import { motion, AnimatePresence } from 'motion/react';
 
 
 
 function ReminiqApp() {
-  const { user, isConfigured } = useAuth();
+  const { user, isConfigured, signInWithGoogle } = useAuth();
   const [view, setView] = useState<'landing' | 'vault'>('landing');
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -31,7 +35,7 @@ function ReminiqApp() {
 
   // Sync state
   const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(getSavedSpotifyAuthTicket());
   const [googlePhotos, setGooglePhotos] = useState<any[]>([]);
   const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
 
@@ -42,7 +46,7 @@ function ReminiqApp() {
         fetchGooglePhotos(event.data.token);
       }
       if (event.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
-        setSpotifyToken(event.data.token);
+        setSpotifyToken(event.data.token || event.data.authTicket);
       }
     };
     window.addEventListener('message', handleMessage);
@@ -56,12 +60,24 @@ function ReminiqApp() {
   };
 
   const connectSpotify = async () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const response = await fetch(`/api/auth/spotify/url?origin=${encodeURIComponent(origin)}`, {
-      headers: { 'x-client-origin': origin }
-    });
-    const { url } = await response.json();
-    window.open(url, 'spotify_auth', 'width=600,height=700');
+    if (!user) {
+      setToast({ message: 'Please sign in to Reminiq first to connect your Spotify account.', type: 'error' });
+      return;
+    }
+    try {
+      await connectSpotifyService();
+      const ticket = getSavedSpotifyAuthTicket();
+      if (ticket) {
+        setSpotifyToken(ticket);
+        setToast({ message: 'Spotify connected successfully!', type: 'success' });
+      }
+    } catch (err: any) {
+      if (err.name === 'AuthenticationRequiredError' || err.message?.includes('sign in')) {
+        setToast({ message: 'Please sign in with Google to connect Spotify.', type: 'error' });
+      } else if (!err.message?.includes('cancelled')) {
+        setToast({ message: err.message || 'Failed to connect Spotify.', type: 'error' });
+      }
+    }
   };
 
   const fetchGooglePhotos = async (token: string) => {
