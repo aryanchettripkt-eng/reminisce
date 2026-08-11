@@ -35,7 +35,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
 
   const startGoogleSync = async () => {
     if (!user) {
-      alert('Please sign in to Reminiq first.');
+      alert('Please sign in to Reminisce first.');
       return;
     }
 
@@ -54,7 +54,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
         }
         alert(`Successfully imported ${result.imported.length} photo${result.imported.length > 1 ? 's' : ''} from Google Photos!`);
       } else if (result.duplicates.length > 0) {
-        alert('Selected photos have already been imported into Reminiq.');
+        alert('Selected photos have already been imported into Reminisce.');
       } else if (result.unsupported.length > 0) {
         alert('Some items were skipped (videos are not currently supported).');
       }
@@ -182,7 +182,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-xs">
         <div className="flex items-center gap-3">
           <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
-            Reminiq
+            Reminisce
           </a>
           <span className="hidden md:inline-block font-hand text-xs text-brown/60 uppercase tracking-[0.18em]">
             A quiet companion for every memory
@@ -296,7 +296,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
             transition={{ delay: 0.5 }}
             className="font-serif text-6xl md:text-8xl font-semibold text-dark-brown leading-[1.05] mb-8 tracking-tight"
           >
-            Reminiq
+            Reminisce
           </motion.h1>
           
           <motion.p 
@@ -407,7 +407,7 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
 
       <footer className="bg-ink py-20 px-10 flex flex-col md:flex-row items-center justify-between gap-6 relative">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-parchment/20 to-transparent" />
-        <div className="font-serif text-2xl text-parchment italic">Reminiq</div>
+        <div className="font-serif text-2xl text-parchment italic">Reminisce</div>
         <p className="font-hand text-base text-parchment/50 max-w-[300px] text-center md:text-left">Made with warmth for quiet people with full hearts.</p>
         <div className="flex gap-8">
           {['Privacy', 'About', 'Contact'].map(l => (

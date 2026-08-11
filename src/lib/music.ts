@@ -20,56 +20,8 @@ export const VINTAGE_AUDIO_STREAMS = [
   'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3', // Waltz
 ];
 
-export const LOCAL_TRACKS: Track[] = [
-  {
-    id: 't1',
-    title: 'Midnight City',
-    artist: 'M83',
-    albumArt: 'https://picsum.photos/seed/m83/400/400',
-    url: VINTAGE_AUDIO_STREAMS[1],
-    genre: 'Synthwave'
-  },
-  {
-    id: 't2',
-    title: 'Lofi Study & Rain',
-    artist: 'Chillhop Music',
-    albumArt: 'https://picsum.photos/seed/lofi/400/400',
-    url: VINTAGE_AUDIO_STREAMS[2],
-    genre: 'Lofi'
-  },
-  {
-    id: 't3',
-    title: 'Nostalgia (Clair de Lune)',
-    artist: 'Memory Lane Chamber',
-    albumArt: 'https://picsum.photos/seed/nostalgia/400/400',
-    url: VINTAGE_AUDIO_STREAMS[3],
-    genre: 'Classical'
-  },
-  {
-    id: 't4',
-    title: 'Summer Breeze',
-    artist: 'Vintage Vibes',
-    albumArt: 'https://picsum.photos/seed/summer/400/400',
-    url: VINTAGE_AUDIO_STREAMS[4],
-    genre: 'Acoustic'
-  },
-  {
-    id: 't5',
-    title: 'Rainy Night Jazz',
-    artist: 'Blue Note Trio',
-    albumArt: 'https://picsum.photos/seed/rainy/400/400',
-    url: VINTAGE_AUDIO_STREAMS[5],
-    genre: 'Jazz'
-  },
-  {
-    id: 't6',
-    title: 'Golden Hour (Gymnopédie)',
-    artist: 'Acoustic Dreams',
-    albumArt: 'https://picsum.photos/seed/golden/400/400',
-    url: VINTAGE_AUDIO_STREAMS[0],
-    genre: 'Ambient'
-  }
-];
+// Default tracks removed as requested — shelves are populated dynamically from user's Spotify imports & memories
+export const LOCAL_TRACKS: Track[] = [];
 
 /**
  * Returns a guaranteed working audio URL for any track, falling back to a deterministic vintage stream.

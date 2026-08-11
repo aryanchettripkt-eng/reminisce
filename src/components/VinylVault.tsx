@@ -82,6 +82,9 @@ export default function VinylVault({
   onConnectSpotify,
   spotifyToken
 }: VinylVaultProps) {
+  // Music memories from Supabase
+  const musicMemories = memories.filter(m => m.type === 'music' || m.music);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<{
     id?: string;
@@ -92,12 +95,25 @@ export default function VinylVault({
     externalUrl?: string;
     uri?: string;
     provider?: string;
-  }>({
-    title: 'Little Women (Theme)',
-    artist: 'Louisa May Alcott Suite',
-    albumArt: 'https://picsum.photos/seed/vintagebook/400/400',
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    provider: 'local'
+  }>(() => {
+    const firstMusic = musicMemories[0];
+    if (firstMusic?.music) {
+      return {
+        id: firstMusic.music.providerTrackId || firstMusic.id,
+        title: firstMusic.music.song,
+        artist: firstMusic.music.artist,
+        albumArt: firstMusic.music.albumArt,
+        externalUrl: firstMusic.music.externalUrl,
+        uri: firstMusic.music.uri,
+        provider: firstMusic.music.provider || 'spotify'
+      };
+    }
+    return {
+      title: 'Select Track from Shelf or Spotify',
+      artist: 'No song currently loaded',
+      albumArt: '',
+      provider: 'none'
+    };
   });
 
   const [activeTab, setActiveTab] = useState<'shelves' | 'spotify' | 'search'>('shelves');
@@ -123,9 +139,6 @@ export default function VinylVault({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [progress, setProgress] = useState(0);
 
-  // Music memories from Supabase
-  const musicMemories = memories.filter(m => m.type === 'music' || m.music);
-
   // Extract Spotify Track ID for embed player
   const spotifyTrackId = React.useMemo(() => {
     if (currentTrack.uri && currentTrack.uri.startsWith('spotify:track:')) {
@@ -135,7 +148,7 @@ export default function VinylVault({
       const match = currentTrack.externalUrl.match(/track\/([a-zA-Z0-9]+)/);
       if (match) return match[1];
     }
-    if (currentTrack.id && !currentTrack.id.startsWith('t') && currentTrack.provider === 'spotify') {
+    if (currentTrack.id && !currentTrack.id.startsWith('t') && (currentTrack.provider === 'spotify' || !currentTrack.provider)) {
       return currentTrack.id;
     }
     return null;
@@ -237,7 +250,10 @@ export default function VinylVault({
       id: track.id,
       title: track.title,
       url: track.url,
-      audioUrl: track.audioUrl
+      audioUrl: track.audioUrl,
+      uri: track.uri,
+      provider: track.provider,
+      externalUrl: track.externalUrl
     });
 
     const enrichedTrack = {
@@ -254,26 +270,28 @@ export default function VinylVault({
       audioRef.current.play().then(() => {
         setIsPlaying(true);
       }).catch((err) => {
-        console.warn("Audio play warning:", err);
+        console.warn("Audio play notice:", err);
       });
     }
   };
 
   const togglePlay = () => {
-    if (!audioRef.current) return;
     if (isPlaying) {
-      audioRef.current.pause();
+      if (audioRef.current) audioRef.current.pause();
       setIsPlaying(false);
     } else {
       const activeUrl = currentTrack.url || getPlayableAudioUrl(currentTrack);
-      if (!audioRef.current.src || audioRef.current.src === '' || audioRef.current.src.includes('undefined')) {
-        audioRef.current.src = activeUrl;
+      if (audioRef.current) {
+        if (!audioRef.current.src || audioRef.current.src === '' || audioRef.current.src.includes('undefined')) {
+          audioRef.current.src = activeUrl;
+        }
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch((e) => {
+          console.warn("Playback notice:", e);
+        });
       }
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch((e) => {
-        console.warn("Playback error:", e);
-      });
+      setIsPlaying(true);
     }
   };
 
@@ -299,34 +317,31 @@ export default function VinylVault({
 
       <div className="film-grain" />
 
-      {/* Top Mustard Ochre Banner Bar (Matching Reference Image) */}
+      {/* Top Mustard Ochre Banner Bar */}
       <header className="bg-[#dfb141] text-[#1e1b18] px-6 sm:px-10 py-4 border-b-2 border-[#2c241e] flex items-center justify-between z-20 flex-shrink-0 shadow-xs">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-[#2c241e] text-[#f4efe4] flex items-center justify-center shadow-md">
             <Disc size={22} className={isPlaying ? 'animate-spin-slow' : ''} />
           </div>
           <div>
-            <h1 className="font-serif text-2xl font-bold tracking-tight uppercase text-[#1e1b18]">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight uppercase text-[#1e1b18]">
               The Vinyl Vault
             </h1>
-            <p className="text-xs font-serif italic text-[#1e1b18]/80 -mt-0.5">
-              Curated Musical Stories & Portable Magic
+            <p className="font-serif italic text-xs sm:text-sm text-[#2c241e]/80">
+              Music storage & synchronized Spotify records for your memories
             </p>
           </div>
         </div>
 
-        {/* Segmented Arch-style Navigation Tabs (Matching Reference Image Header/Footer) */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center bg-[#f4efe4]/80 p-1 rounded-full border border-[#2c241e]/40 shadow-xs">
+          <div className="flex bg-[#2c241e]/10 p-1 rounded-full border border-[#2c241e]/30">
             <button
               onClick={() => setActiveTab('shelves')}
               className={`px-4 py-1.5 rounded-full font-body text-xs uppercase tracking-wider font-bold transition-all ${
-                activeTab === 'shelves'
-                  ? 'bg-[#2c241e] text-[#f4efe4] shadow-sm'
-                  : 'text-[#2c241e]/70 hover:text-[#2c241e]'
+                activeTab === 'shelves' ? 'bg-[#2c241e] text-[#f4efe4] shadow-xs' : 'text-[#2c241e] hover:bg-[#2c241e]/10'
               }`}
             >
-              Library ({musicMemories.length + LOCAL_TRACKS.length})
+              Shelves ({musicMemories.length})
             </button>
             <button
               onClick={() => {
@@ -334,9 +349,7 @@ export default function VinylVault({
                 if (isSpotifyConnected()) loadSpotifyPlaylists();
               }}
               className={`px-4 py-1.5 rounded-full font-body text-xs uppercase tracking-wider font-bold transition-all ${
-                activeTab === 'spotify'
-                  ? 'bg-[#2c241e] text-[#f4efe4] shadow-sm'
-                  : 'text-[#2c241e]/70 hover:text-[#2c241e]'
+                activeTab === 'spotify' ? 'bg-[#2c241e] text-[#f4efe4] shadow-xs' : 'text-[#2c241e] hover:bg-[#2c241e]/10'
               }`}
             >
               Spotify Sync
@@ -344,9 +357,7 @@ export default function VinylVault({
             <button
               onClick={() => setActiveTab('search')}
               className={`px-4 py-1.5 rounded-full font-body text-xs uppercase tracking-wider font-bold transition-all ${
-                activeTab === 'search'
-                  ? 'bg-[#2c241e] text-[#f4efe4] shadow-sm'
-                  : 'text-[#2c241e]/70 hover:text-[#2c241e]'
+                activeTab === 'search' ? 'bg-[#2c241e] text-[#f4efe4] shadow-xs' : 'text-[#2c241e] hover:bg-[#2c241e]/10'
               }`}
             >
               Search
@@ -393,7 +404,7 @@ export default function VinylVault({
         {/* Left Column: Editorial Turntable & Tabular Metadata (5 cols) */}
         <div className="lg:col-span-5 flex flex-col items-center space-y-6">
           
-          {/* Card: Mustard Top + Cream Body + Tabular Outline (Matching Reference Phone 1) */}
+          {/* Card: Mustard Top + Cream Body + Tabular Outline */}
           <div className="w-full bg-[#fcfaf7] rounded-2xl border-2 border-[#2c241e] overflow-hidden shadow-xl">
             
             {/* Top Mustard Block */}
@@ -419,7 +430,6 @@ export default function VinylVault({
                         <MusicIcon size={20} />
                       </div>
                     )}
-                    {/* Spindle hole */}
                     <div className="absolute inset-0 m-auto w-2.5 h-2.5 rounded-full bg-[#2c241e] border border-white" />
                   </div>
                 </div>
@@ -466,7 +476,7 @@ export default function VinylVault({
                 <span className="text-[#2c241e]/60 font-body text-xs uppercase tracking-wider">Status:</span>
                 <span className="font-bold text-[#2c241e] flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-green-700 animate-pulse' : 'bg-[#dfb141]'}`} />
-                  {isPlaying ? 'Playing on Reminiq' : 'Ready on Shelf'}
+                  {isPlaying ? 'Playing on Reminisce' : 'Ready on Shelf'}
                 </span>
               </div>
             </div>
@@ -512,7 +522,7 @@ export default function VinylVault({
                   "
                 </p>
                 <p className="text-xs font-serif italic text-[#2c241e]/70 mt-2">
-                  — The Reminiq Vault Archive
+                  — The Reminisce Vault Archive
                 </p>
               </div>
             </div>
@@ -547,216 +557,209 @@ export default function VinylVault({
                   MARGIN ARCHIVE
                 </h2>
                 <p className="text-xs font-serif italic text-[#2c241e]/70 mt-0.5">
-                  Vintage Vinyl & Classical Book Spines ({musicMemories.length + LOCAL_TRACKS.length} items in vault)
+                  Your Personal Vinyl & Spotify Vault ({musicMemories.length} records)
                 </p>
               </div>
 
-              {/* Grid of Vinyl / Book Spines */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {/* Local ambient tracks */}
-                {LOCAL_TRACKS.map((track, idx) => {
-                  const isCurrent = currentTrack.title === track.title;
-
-                  return (
-                    <motion.div
-                      key={track.id}
-                      whileHover={{ scale: 1.03, y: -4 }}
-                      onClick={() => playTrack({
-                        id: track.id,
-                        title: track.title,
-                        artist: track.artist,
-                        albumArt: track.albumArt,
-                        url: track.url,
-                        provider: 'local'
-                      })}
-                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                        isCurrent
-                          ? 'border-[#2c241e] bg-[#dfb141]/30 ring-2 ring-[#2c241e]/20 shadow-md'
-                          : 'border-[#2c241e]/30 bg-white/70 hover:bg-white hover:border-[#2c241e]'
-                      }`}
+              {/* Grid of User's Real Music Memories / Imported Vinyls */}
+              {musicMemories.length === 0 ? (
+                <div className="py-16 text-center bg-white/60 rounded-2xl border-2 border-dashed border-[#2c241e]/30 px-6">
+                  <Disc size={44} className="mx-auto text-[#2c241e]/30 mb-3" />
+                  <h3 className="font-serif text-xl font-bold text-[#1e1b18]">Your Vinyl Shelves Are Clean</h3>
+                  <p className="font-serif text-xs text-[#2c241e]/70 mt-1 mb-6 max-w-sm mx-auto">
+                    Connect your Spotify account or search above to import your favorite soundtrack albums into the vault.
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => setActiveTab('spotify')}
+                      className="px-5 py-2 rounded-full bg-[#dfb141] hover:bg-[#dab044] text-[#1e1b18] font-serif text-xs font-bold shadow-sm"
                     >
-                      <div className="aspect-square rounded-lg overflow-hidden border border-[#2c241e]/40 shadow-xs mb-2.5 relative group">
-                        <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-[#2c241e]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Play size={24} className="fill-white text-white" />
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-[#1e1b18] truncate leading-tight">
-                          {track.title}
-                        </h4>
-                        <p className="text-[11px] font-body text-[#2c241e]/70 truncate mt-0.5">
-                          {track.artist}
-                        </p>
-                      </div>
-
-                      <div className="mt-3 pt-2 border-t border-[#2c241e]/20 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[#2c241e]/70">
-                        <span>{track.genre}</span>
-                        <span>#{idx + 1}</span>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-
-                {/* Supabase Saved Music Memories */}
-                {musicMemories.map((mem, idx) => {
-                  const trackData = mem.music || { song: mem.title, artist: mem.mood };
-                  const isCurrent = currentTrack.title === trackData.song;
-
-                  return (
-                    <motion.div
-                      key={mem.id}
-                      whileHover={{ scale: 1.03, y: -4 }}
-                      onClick={() => playTrack({
-                        id: mem.id,
-                        title: trackData.song,
-                        artist: trackData.artist,
-                        albumArt: trackData.albumArt || mem.photoUrl,
-                        audioUrl: mem.audioUrl,
-                        externalUrl: trackData.externalUrl || mem.musicUrl,
-                        uri: trackData.uri,
-                        provider: trackData.provider || 'spotify'
-                      })}
-                      className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                        isCurrent
-                          ? 'border-[#2c241e] bg-[#dfb141]/30 ring-2 ring-[#2c241e]/20 shadow-md'
-                          : 'border-[#2c241e]/30 bg-white/70 hover:bg-white hover:border-[#2c241e]'
-                      }`}
+                      Open Spotify Sync
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('search')}
+                      className="px-5 py-2 rounded-full bg-[#2c241e] hover:bg-[#1a1410] text-[#f4efe4] font-serif text-xs font-bold shadow-sm"
                     >
-                      <div className="aspect-square rounded-lg overflow-hidden border border-[#2c241e]/40 shadow-xs mb-2.5 bg-[#dfb141]/10 relative group">
-                        {trackData.albumArt || mem.photoUrl ? (
-                          <img
-                            src={trackData.albumArt || mem.photoUrl}
-                            alt={trackData.song}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#2c241e]/40">
-                            <Disc size={28} />
+                      Search Tracks
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {musicMemories.map((mem, idx) => {
+                    const trackData = mem.music || { song: mem.title, artist: mem.mood };
+                    const isCurrent = currentTrack.title === trackData.song;
+
+                    return (
+                      <motion.div
+                        key={mem.id}
+                        whileHover={{ scale: 1.03, y: -4 }}
+                        onClick={() => playTrack({
+                          id: mem.id,
+                          title: trackData.song,
+                          artist: trackData.artist,
+                          albumArt: trackData.albumArt || mem.photoUrl,
+                          audioUrl: mem.audioUrl,
+                          externalUrl: trackData.externalUrl || mem.musicUrl,
+                          uri: trackData.uri,
+                          provider: trackData.provider || 'spotify'
+                        })}
+                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                          isCurrent
+                            ? 'border-[#2c241e] bg-[#dfb141]/30 ring-2 ring-[#2c241e]/20 shadow-md'
+                            : 'border-[#2c241e]/30 bg-white/70 hover:bg-white hover:border-[#2c241e]'
+                        }`}
+                      >
+                        <div className="aspect-square rounded-lg overflow-hidden border border-[#2c241e]/40 shadow-xs mb-2.5 bg-[#dfb141]/10 relative group">
+                          {trackData.albumArt || mem.photoUrl ? (
+                            <img
+                              src={trackData.albumArt || mem.photoUrl}
+                              alt={trackData.song}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[#2c241e]/40">
+                              <Disc size={28} />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-[#2c241e]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <Play size={24} className="fill-white text-white" />
                           </div>
-                        )}
-                        <div className="absolute inset-0 bg-[#2c241e]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <Play size={24} className="fill-white text-white" />
                         </div>
-                      </div>
 
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-[#1e1b18] truncate leading-tight">
-                          {trackData.song}
-                        </h4>
-                        <p className="text-[11px] font-body text-[#2c241e]/70 truncate mt-0.5">
-                          {trackData.artist}
-                        </p>
-                      </div>
+                        <div>
+                          <h4 className="font-serif font-bold text-sm text-[#1e1b18] truncate leading-tight">
+                            {trackData.song}
+                          </h4>
+                          <p className="text-[11px] font-body text-[#2c241e]/70 truncate mt-0.5">
+                            {trackData.artist}
+                          </p>
+                        </div>
 
-                      <div className="mt-3 pt-2 border-t border-[#2c241e]/20 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[#2c241e]">
-                        <span className="px-1.5 py-0.5 rounded bg-[#dfb141]/40">Spotify</span>
-                        <span>#{LOCAL_TRACKS.length + idx + 1}</span>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                        <div className="mt-3 pt-2 border-t border-[#2c241e]/20 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-[#2c241e]/70">
+                          <span>{trackData.album || 'Vinyl Vault'}</span>
+                          <span>#{idx + 1}</span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'spotify' && (
-            <div className="bg-[#fcfaf7] rounded-3xl border-2 border-[#2c241e] p-6 sm:p-8 shadow-xl">
-              <div className="border-b-2 border-[#2c241e] pb-4 mb-6 flex items-center justify-between">
+            <div className="bg-[#fcfaf7] rounded-3xl border-2 border-[#2c241e] p-6 sm:p-8 shadow-xl space-y-6">
+              <div className="flex items-center justify-between border-b-2 border-[#2c241e] pb-4">
                 <div>
                   <h2 className="font-serif text-2xl font-bold uppercase text-[#1e1b18]">
                     Spotify Playlists
                   </h2>
                   <p className="text-xs font-serif italic text-[#2c241e]/70">
-                    Sync and import classical & modern vinyl collections
+                    Click any song to play immediately in the turntable, or select to import to shelves
                   </p>
                 </div>
 
-                {!spotifyConnected ? (
-                  <button
-                    onClick={onConnectSpotify}
-                    className="px-4 py-2 rounded-full bg-[#2c241e] text-[#f4efe4] font-body text-xs font-bold uppercase tracking-wider"
-                  >
-                    Connect Account
-                  </button>
-                ) : (
+                <div className="flex items-center gap-2">
                   <button
                     onClick={loadSpotifyPlaylists}
                     disabled={isLoadingPlaylists}
-                    className="px-3 py-1 rounded-full bg-[#dfb141] text-[#1e1b18] font-body text-xs font-bold uppercase tracking-wider hover:bg-[#dab044]"
+                    className="px-3 py-1 bg-white border border-[#2c241e]/30 rounded-full text-xs font-serif hover:bg-[#dfb141]/20 transition-all"
                   >
-                    {isLoadingPlaylists ? 'Refreshing...' : 'Refresh Playlists'}
+                    ↻ Refresh
                   </button>
-                )}
+                  {selectedPlaylist && (
+                    <button
+                      onClick={() => setSelectedPlaylist(null)}
+                      className="px-3 py-1 bg-[#2c241e] text-[#f4efe4] rounded-full text-xs font-serif"
+                    >
+                      ← Back to Playlists
+                    </button>
+                  )}
+                </div>
               </div>
 
               {!spotifyConnected ? (
-                <div className="p-12 text-center border-2 border-dashed border-[#2c241e]/30 rounded-2xl bg-[#dfb141]/10">
-                  <Disc size={48} className="mx-auto text-[#2c241e] mb-3 animate-spin-slow" />
-                  <h3 className="font-serif text-xl font-bold text-[#1e1b18]">Spotify Handshake Required</h3>
-                  <p className="text-xs font-serif italic text-[#2c241e]/70 max-w-sm mx-auto mt-1 mb-5">
-                    Connect your Spotify account to import full playlist tracks into your Reminiq Vinyl Vault.
+                <div className="py-12 text-center bg-white/60 rounded-2xl border-2 border-dashed border-[#2c241e]/30 p-6">
+                  <Radio size={40} className="mx-auto text-[#2c241e]/40 mb-3" />
+                  <h3 className="font-serif text-xl font-bold text-[#1e1b18]">Spotify Account Not Connected</h3>
+                  <p className="font-serif text-xs text-[#2c241e]/70 mt-1 mb-4 max-w-sm mx-auto">
+                    Connect your Spotify account to import full playlist tracks into your Reminisce Vinyl Vault.
                   </p>
                   <button
                     onClick={onConnectSpotify}
-                    className="px-6 py-2.5 rounded-full bg-[#2c241e] hover:bg-[#1a1410] text-[#f4efe4] font-body text-xs font-bold uppercase tracking-widest shadow-md"
+                    className="px-6 py-2.5 bg-[#2c241e] hover:bg-[#1a1410] text-[#f4efe4] font-body text-xs font-bold uppercase tracking-wider rounded-full shadow-md transition-all"
                   >
-                    Connect Spotify Now
+                    Connect Spotify
                   </button>
                 </div>
               ) : (
                 <div>
                   {selectedPlaylist ? (
                     <div>
-                      <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#2c241e]/20">
-                        <button
-                          onClick={() => setSelectedPlaylist(null)}
-                          className="text-xs font-serif font-bold text-[#1e1b18] hover:underline"
-                        >
-                          ← Back to Playlists
-                        </button>
-                        <span className="font-serif font-bold text-sm text-[#1e1b18] truncate">
-                          {selectedPlaylist.name} ({playlistTracks.length} tracks)
-                        </span>
-                      </div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          {selectedPlaylist.images?.[0]?.url && (
+                            <img src={selectedPlaylist.images[0].url} alt={selectedPlaylist.name} className="w-12 h-12 rounded-lg object-cover border border-[#2c241e]/30" />
+                          )}
+                          <div>
+                            <h3 className="font-serif font-bold text-lg text-[#1e1b18]">{selectedPlaylist.name}</h3>
+                            <p className="text-xs font-body text-[#2c241e]/70">{playlistTracks.length} tracks available • click song to play</p>
+                          </div>
+                        </div>
 
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-[#dfb141]/20 border border-[#2c241e]/30 mb-4">
-                        <span className="text-xs font-serif font-bold text-[#1e1b18]">
-                          {selectedTrackIds.size} tracks selected
-                        </span>
-                        <button
-                          onClick={handleImportSelectedTracks}
-                          disabled={selectedTrackIds.size === 0 || isImporting}
-                          className="px-4 py-1.5 rounded-full bg-[#2c241e] text-[#f4efe4] font-body text-xs font-bold uppercase tracking-wider disabled:opacity-40"
-                        >
-                          {isImporting ? 'Importing...' : `Import to Shelf`}
-                        </button>
+                        {selectedTrackIds.size > 0 && (
+                          <button
+                            onClick={handleImportSelectedTracks}
+                            disabled={isImporting}
+                            className="px-4 py-2 bg-[#dfb141] hover:bg-[#dab044] text-[#1e1b18] font-serif font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                          >
+                            {isImporting ? 'Importing...' : `Import (${selectedTrackIds.size}) to Shelves`}
+                          </button>
+                        )}
                       </div>
 
                       {isLoadingTracks ? (
                         <div className="py-12 text-center text-[#2c241e]/60 font-serif italic">Loading tracks...</div>
                       ) : (
-                        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
                           {playlistTracks.map(track => {
                             const isSelected = selectedTrackIds.has(track.id);
+                            const isCurrent = currentTrack.title === track.name || currentTrack.id === track.id;
 
                             return (
                               <div
                                 key={track.id}
-                                onClick={() => handleToggleTrackSelect(track.id)}
+                                onClick={() => {
+                                  playTrack({
+                                    id: track.id,
+                                    title: track.name,
+                                    artist: track.artists,
+                                    albumArt: track.albumArt,
+                                    externalUrl: track.externalUrl,
+                                    uri: track.uri,
+                                    provider: 'spotify'
+                                  });
+                                }}
                                 className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#dfb141]/30 border-[#2c241e]'
+                                  isCurrent
+                                    ? 'bg-[#dfb141]/40 border-[#2c241e] shadow-xs'
                                     : 'bg-white/60 border-[#2c241e]/20 hover:bg-white'
                                 }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0">
-                                  <div className={`w-4 h-4 rounded flex items-center justify-center border ${
-                                    isSelected ? 'bg-[#2c241e] border-[#2c241e] text-[#f4efe4]' : 'border-[#2c241e]/40'
-                                  }`}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleTrackSelect(track.id);
+                                    }}
+                                    className={`w-4 h-4 rounded flex items-center justify-center border ${
+                                      isSelected ? 'bg-[#2c241e] border-[#2c241e] text-[#f4efe4]' : 'border-[#2c241e]/40'
+                                    }`}
+                                    title="Select to import"
+                                  >
                                     {isSelected && <Check size={10} strokeWidth={3} />}
-                                  </div>
+                                  </button>
 
                                   {track.albumArt && (
                                     <img src={track.albumArt} alt={track.name} className="w-9 h-9 rounded object-cover border border-[#2c241e]/30" />
@@ -768,23 +771,42 @@ export default function VinylVault({
                                   </div>
                                 </div>
 
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    playTrack({
-                                      id: track.id,
-                                      title: track.name,
-                                      artist: track.artists,
-                                      albumArt: track.albumArt,
-                                      externalUrl: track.externalUrl,
-                                      uri: track.uri,
-                                      provider: 'spotify'
-                                    });
-                                  }}
-                                  className="p-1.5 rounded-full hover:bg-[#2c241e]/10 text-[#2c241e]"
-                                >
-                                  <Play size={14} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      playTrack({
+                                        id: track.id,
+                                        title: track.name,
+                                        artist: track.artists,
+                                        albumArt: track.albumArt,
+                                        externalUrl: track.externalUrl,
+                                        uri: track.uri,
+                                        provider: 'spotify'
+                                      });
+                                    }}
+                                    className="p-1.5 rounded-full hover:bg-[#2c241e]/10 text-[#2c241e]"
+                                    title="Play Song"
+                                  >
+                                    <Play size={14} className="fill-[#2c241e]" />
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      importSpotifyTracks([track]).then(res => {
+                                        if (res.imported.length > 0) {
+                                          onAddMemory(res.imported[0]);
+                                          alert(`Saved "${track.name}" to Vinyl Vault!`);
+                                        }
+                                      });
+                                    }}
+                                    className="px-2.5 py-1 rounded bg-[#dfb141] hover:bg-[#dab044] text-[#1e1b18] font-serif text-[11px] font-bold"
+                                    title="Save directly to shelf"
+                                  >
+                                    + Save
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}
@@ -837,7 +859,7 @@ export default function VinylVault({
                   Search Spotify Archive
                 </h2>
                 <p className="text-xs font-serif italic text-[#2c241e]/70">
-                  Search any classical, vintage, or modern track to pin to your vault
+                  Search any song or album to play on the turntable or pin to your shelf
                 </p>
               </div>
 
@@ -858,22 +880,32 @@ export default function VinylVault({
                   disabled={isSearching}
                   className="px-5 py-2.5 bg-[#2c241e] hover:bg-[#1a1410] text-[#f4efe4] font-body font-bold text-xs uppercase tracking-wider rounded-xl disabled:opacity-40"
                 >
-                  {isSearching ? '...' : 'Search'}
+                  {isSearching ? 'Searching...' : 'Search'}
                 </button>
               </div>
 
-              {/* Search Results */}
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                 {searchResults.map(track => {
                   const isSelected = selectedTrackIds.has(track.id);
+                  const isCurrent = currentTrack.title === track.name || currentTrack.id === track.id;
 
                   return (
                     <div
                       key={track.id}
-                      onClick={() => handleToggleTrackSelect(track.id)}
+                      onClick={() => {
+                        playTrack({
+                          id: track.id,
+                          title: track.name,
+                          artist: track.artists,
+                          albumArt: track.albumArt,
+                          externalUrl: track.externalUrl,
+                          uri: track.uri,
+                          provider: 'spotify'
+                        });
+                      }}
                       className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#dfb141]/30 border-[#2c241e]'
+                        isCurrent
+                          ? 'bg-[#dfb141]/40 border-[#2c241e]'
                           : 'bg-white/60 border-[#2c241e]/20 hover:bg-white'
                       }`}
                     >
@@ -902,8 +934,9 @@ export default function VinylVault({
                             });
                           }}
                           className="p-1.5 rounded-full hover:bg-[#2c241e]/10 text-[#2c241e]"
+                          title="Play Track"
                         >
-                          <Play size={14} />
+                          <Play size={14} className="fill-[#2c241e]" />
                         </button>
                         <button
                           onClick={(e) => {

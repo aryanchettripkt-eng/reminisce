@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Remix: Reminiq",
+  "name": "Reminisce",
   "description": "A nostalgic, AI-powered personal memory keeper that stores your moments in an immersive 3D vault.",
   "requestFramePermissions": [
     "camera",
