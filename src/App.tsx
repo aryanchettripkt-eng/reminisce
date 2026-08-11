@@ -14,12 +14,16 @@ import {
   updateAlbum as supabaseUpdateAlbum,
   deleteAlbum as supabaseDeleteAlbum
 } from './services/supabase';
+import { 
+  connectSpotify as connectSpotifyService, 
+  getSavedSpotifyAuthTicket 
+} from './services/supabase/spotifyService';
 import { motion, AnimatePresence } from 'motion/react';
 
 
 
 function ReminiqApp() {
-  const { user, isConfigured } = useAuth();
+  const { user, isConfigured, signInWithGoogle } = useAuth();
   const [view, setView] = useState<'landing' | 'vault'>('landing');
   const [activeOverlay, setActiveOverlay] = useState<string | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -31,9 +35,19 @@ function ReminiqApp() {
 
   // Sync state
   const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(getSavedSpotifyAuthTicket());
   const [googlePhotos, setGooglePhotos] = useState<any[]>([]);
   const [isFetchingPhotos, setIsFetchingPhotos] = useState(false);
+
+  // Toast feedback state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -42,7 +56,7 @@ function ReminiqApp() {
         fetchGooglePhotos(event.data.token);
       }
       if (event.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
-        setSpotifyToken(event.data.token);
+        setSpotifyToken(event.data.token || event.data.authTicket);
       }
     };
     window.addEventListener('message', handleMessage);
@@ -56,12 +70,24 @@ function ReminiqApp() {
   };
 
   const connectSpotify = async () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const response = await fetch(`/api/auth/spotify/url?origin=${encodeURIComponent(origin)}`, {
-      headers: { 'x-client-origin': origin }
-    });
-    const { url } = await response.json();
-    window.open(url, 'spotify_auth', 'width=600,height=700');
+    if (!user) {
+      setToast({ message: 'Please sign in to Reminiq first to connect your Spotify account.', type: 'error' });
+      return;
+    }
+    try {
+      await connectSpotifyService();
+      const ticket = getSavedSpotifyAuthTicket();
+      if (ticket) {
+        setSpotifyToken(ticket);
+        setToast({ message: 'Spotify connected successfully!', type: 'success' });
+      }
+    } catch (err: any) {
+      if (err.name === 'AuthenticationRequiredError' || err.message?.includes('sign in')) {
+        setToast({ message: 'Please sign in with Google to connect Spotify.', type: 'error' });
+      } else if (!err.message?.includes('cancelled')) {
+        setToast({ message: err.message || 'Failed to connect Spotify.', type: 'error' });
+      }
+    }
   };
 
   const fetchGooglePhotos = async (token: string) => {
@@ -88,112 +114,185 @@ function ReminiqApp() {
         title: 'A quiet Tuesday thought',
         desc: 'Had this idea about a community garden where each tile is made by a different neighbor. Something about the light on the courtyard.',
         mood: 'nostalgic',
-        location: 'Home, late evening',
-        date: new Date('2023-11-12T18:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/garden/800/600'
+        date: '2026-03-12',
+        tags: ['garden', 'neighbors', 'light'],
       },
       {
         id: '2',
         type: 'photo',
-        title: 'The café in the rain',
-        desc: 'It rained all afternoon and we stayed. Three rounds of coffee. We talked about everything we were afraid of.',
-        mood: 'bittersweet',
-        location: 'The corner café',
-        date: new Date('2023-07-08T14:30:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/cafe/800/600'
+        title: 'Morning mist over the lake',
+        desc: 'The water was completely still. You could see the reflection of the old boathouse before the fog cleared.',
+        mood: 'peaceful',
+        date: '2026-03-10',
+        tags: ['lake', 'morning', 'fog'],
+        photoUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=60',
       },
       {
         id: '3',
-        type: 'text',
-        title: 'Grandma folding cranes',
-        desc: 'The light came through yellow curtains and made everything amber. I photographed it with my eyes.',
-        mood: 'love',
-        location: "Grandma's kitchen",
-        date: new Date('2023-08-20T10:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/grandma/800/600'
+        type: 'voice',
+        title: 'Voice note: rain on the skylight',
+        desc: 'Just listening to the storm roll in. 47 seconds of pure rain on glass.',
+        mood: 'calm',
+        date: '2026-03-08',
+        tags: ['rain', 'sound', 'evening'],
+        audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
       },
       {
         id: '4',
-        type: 'photo',
-        title: 'Neon Tokyo Nights',
-        desc: 'The city never sleeps, and neither did we. Ramen at 3 AM tasted like victory.',
+        type: 'music',
+        title: 'Sunday morning record',
+        desc: 'Put on the Bill Evans record while the coffee brewed. The whole kitchen smelled like dark roast.',
         mood: 'joy',
-        location: 'Shinjuku, Tokyo',
-        date: new Date('2023-12-15T03:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/tokyo/800/600'
+        date: '2026-03-05',
+        tags: ['music', 'coffee', 'sunday'],
+        music: {
+          song: 'Peace Piece',
+          artist: 'Bill Evans',
+          album: 'Everybody Digs Bill Evans',
+          albumArt: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=60',
+        },
       },
       {
         id: '5',
         type: 'photo',
-        title: 'Mountain Mist',
-        desc: 'Waking up above the clouds. The silence was so loud it felt like a physical weight.',
-        mood: 'peaceful',
-        location: 'Swiss Alps',
-        date: new Date('2023-05-22T06:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/alps/800/600'
+        title: 'Coffee with Sarah',
+        desc: 'Two cortados, outside even though it was slightly too cold. Talked about everything and nothing for two hours.',
+        mood: 'joy',
+        date: '2026-03-01',
+        tags: ['coffee', 'sarah', 'conversation'],
+        photoUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=60',
       },
       {
         id: '6',
         type: 'photo',
-        title: 'Old Library Scent',
-        desc: 'Dusty paper and vanilla. I could stay here forever, lost in stories that aren\'t mine.',
-        mood: 'nostalgic',
-        location: 'Oxford Library',
-        date: new Date('2023-09-10T11:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/library/800/600'
+        title: 'Evening walk through the park',
+        desc: 'The sky turned this incredible shade of amber right before dusk. Everyone was out walking their dogs.',
+        mood: 'peaceful',
+        date: '2026-02-28',
+        tags: ['sunset', 'park', 'walk'],
+        photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=60',
       },
       {
         id: '7',
         type: 'photo',
-        title: 'Golden Hour Beach',
-        desc: 'The sand was warm and the water was cold. Perfect balance.',
-        mood: 'joy',
-        location: 'Malibu, CA',
-        date: new Date('2023-08-05T19:30:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/beach/800/600'
+        title: 'Old bookstore on 4th',
+        desc: 'Found a first edition with notes in the margins from 1962. Smelled like old paper and vanilla.',
+        mood: 'nostalgic',
+        date: '2026-02-24',
+        tags: ['books', 'vintage', 'reading'],
+        photoUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&auto=format&fit=crop&q=60',
       },
       {
         id: '8',
+        type: 'text',
+        title: 'Recipe from grandma',
+        desc: 'She wrote it on the back of an envelope: "a pinch of cardamom, but only the good kind." I still have the envelope.',
+        mood: 'bittersweet',
+        date: '2026-02-20',
+        tags: ['grandma', 'recipe', 'baking'],
+      },
+      {
+        id: '9',
+        type: 'music',
+        title: 'Driving home in the dark',
+        desc: 'That synth track came on right as I hit the bridge. City lights reflected across the whole bay.',
+        mood: 'melancholy',
+        date: '2026-02-15',
+        tags: ['driving', 'night', 'bridge'],
+        music: {
+          song: 'Midnight City',
+          artist: 'M83',
+          album: 'Hurry Up, We\'re Dreaming',
+          albumArt: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=60',
+        },
+      },
+      {
+        id: '10',
         type: 'photo',
-        title: 'Abandoned Piano',
-        desc: 'Found in a forest clearing. It played a song of decay and beauty.',
-        mood: 'melancholic',
-        location: 'Black Forest',
-        date: new Date('2023-10-30T15:00:00Z').toISOString(),
-        photoUrl: 'https://picsum.photos/seed/piano/800/600'
-      }
+        title: 'First snow of the year',
+        desc: 'Woke up to total silence. Everything was covered in about three inches of fresh powder. Made tea and just watched.',
+        mood: 'peaceful',
+        date: '2026-02-10',
+        tags: ['snow', 'winter', 'morning'],
+        photoUrl: 'https://images.unsplash.com/photo-1491555103944-7c647fd857e6?w=800&auto=format&fit=crop&q=60',
+      },
+      {
+        id: '11',
+        type: 'text',
+        title: 'Overheard on the train',
+        desc: '"Some things are only beautiful because they don\'t stay." An older woman saying goodbye to someone on platform 4.',
+        mood: 'bittersweet',
+        date: '2026-02-05',
+        tags: ['train', 'overheard', 'strangers'],
+      },
+      {
+        id: '12',
+        type: 'photo',
+        title: 'Studio cleanup afternoon',
+        desc: 'Finally organized the brushes and found three rolls of film from last summer that I never developed.',
+        mood: 'joy',
+        date: '2026-01-28',
+        tags: ['studio', 'art', 'film'],
+        photoUrl: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&fit=crop&q=60',
+      },
     ];
 
-    if (user && isConfigured) {
-      listUserMemories()
-        .then((dbMemories) => {
-          if (dbMemories.length > 0) {
-            setMemories(dbMemories);
-          } else {
-            setMemories([]);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to load user memories from Supabase:', err);
-          setMemories(initialMemories);
-        });
-
-      listUserAlbums()
-        .then((dbAlbums) => {
-          if (dbAlbums.length > 0) {
-            setAlbums(dbAlbums);
-          } else {
-            setAlbums([]);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to load user albums from Supabase:', err);
-        });
-    } else {
+    if (!user) {
       setMemories(initialMemories);
-      setAlbums([]);
+      return;
     }
-  }, [user, isConfigured]);
+
+    listUserMemories()
+      .then((userMems) => {
+        if (userMems.length > 0) {
+          const mapped: Memory[] = userMems.map((m) => ({
+            id: m.id,
+            type: (m.type as Memory['type']) || 'text',
+            title: m.title,
+            desc: m.desc || '',
+            mood: m.mood || 'peaceful',
+            date: m.date || new Date().toISOString().split('T')[0],
+            photoUrl: m.photo_url || undefined,
+            audioUrl: m.audio_url || undefined,
+            location: m.location || undefined,
+            tags: m.tags || [],
+            source: (m.source as Memory['source']) || 'local',
+            music: (m as any).music || undefined,
+            transcript: (m as any).transcript || undefined,
+            emotion: (m as any).emotion || undefined,
+          }));
+          setMemories(mapped);
+        } else {
+          setMemories(initialMemories);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load memories from Supabase:', err);
+        setMemories(initialMemories);
+      });
+
+    listUserAlbums()
+      .then((userAlbums) => {
+        if (userAlbums.length > 0) {
+          const mapped: Album[] = userAlbums.map((a) => ({
+            id: a.id,
+            title: a.title,
+            coverPhoto: a.cover_photo || undefined,
+            description: a.description || undefined,
+            memoryIds: a.memory_ids || [],
+            aestheticTone: a.aesthetic_tone || undefined,
+            dominantEmotion: a.dominant_emotion || undefined,
+            journalText: a.journal_text || undefined,
+            colorPalette: a.color_palette || undefined,
+            createdAt: a.created_at || undefined,
+          }));
+          setAlbums(mapped);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load albums from Supabase:', err);
+      });
+  }, [user]);
 
   const addMemory = (memory: Memory) => {
     setMemories(prev => [memory, ...prev]);
@@ -203,14 +302,13 @@ function ReminiqApp() {
     setMemories(prev => prev.filter(m => m.id !== memoryId));
     setAlbums(prev => prev.map(a => ({
       ...a,
-      memoryIds: a.memoryIds.filter(id => id !== memoryId),
-      linkedMemoryIds: (a.linkedMemoryIds || a.memoryIds).filter(id => id !== memoryId),
+      memoryIds: a.memoryIds.filter(id => id !== memoryId)
     })));
 
-    if (user && isConfigured) {
+    if (user) {
       try {
         await supabaseDeleteMemory(memoryId);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to delete memory from Supabase:', err);
       }
     }
@@ -220,87 +318,86 @@ function ReminiqApp() {
     setAlbums(newAlbums);
   };
 
-  const handleSortIntoAlbums = async () => {
-    if (memories.length === 0) return;
-    setIsSorting(true);
-    try {
-      const sortedAlbums = await sortMemoriesIntoAlbums(memories);
-      if (sortedAlbums.length === 0) {
-        setToast({ message: "AI couldn't find distinct groups for these memories. Try adding more context or photos.", type: 'error' });
-      } else {
-        if (user && isConfigured) {
-          try {
-            const { created, failed } = await createAlbumsBatch(sortedAlbums);
-            if (created.length > 0) {
-              setAlbums(created);
-              if (failed.length > 0) {
-                console.warn('Some albums failed to persist in batch:', failed);
-              }
-            } else {
-              setAlbums(sortedAlbums);
-            }
-          } catch (batchErr) {
-            console.error('Failed to persist batch albums:', batchErr);
-            setAlbums(sortedAlbums);
-          }
-        } else {
-          setAlbums(sortedAlbums);
-        }
-        setActiveOverlay('albums');
-        setToast({ message: "Memories sorted into albums successfully.", type: 'success' });
-      }
-    } catch (error: any) {
-      console.error("Sorting failed:", error);
-      setToast({ message: error.message || "Sorting failed. Please check your API key and connection.", type: 'error' });
-    } finally {
-      setIsSorting(false);
-    }
-  };
-
-  const updateAlbumTitle = (albumId: string, newTitle: string) => {
+  const updateAlbumTitle = async (albumId: string, newTitle: string) => {
     setAlbums(prev => prev.map(a => a.id === albumId ? { ...a, title: newTitle } : a));
-    if (user && isConfigured) {
-      supabaseUpdateAlbum(albumId, { title: newTitle }).catch((err) => {
+    if (user) {
+      try {
+        await supabaseUpdateAlbum(albumId, { title: newTitle });
+      } catch (err) {
         console.error('Failed to update album title in Supabase:', err);
-      });
+      }
     }
   };
 
-  const updateAlbum = (albumId: string, data: Partial<Album>) => {
+  const updateAlbum = async (albumId: string, data: Partial<Album>) => {
     setAlbums(prev => prev.map(a => a.id === albumId ? { ...a, ...data } : a));
-    if (user && isConfigured) {
-      supabaseUpdateAlbum(albumId, {
-        title: data.title,
-        journalText: data.journalText,
-        voiceNoteUrl: data.voiceNoteUrl,
-        memoryIds: data.memoryIds,
-        linkedMemoryIds: data.linkedMemoryIds,
-      }).catch((err) => {
+    if (user) {
+      try {
+        await supabaseUpdateAlbum(albumId, {
+          title: data.title,
+          description: data.description,
+          cover_photo: data.coverPhoto,
+          aesthetic_tone: data.aestheticTone,
+          dominant_emotion: data.dominantEmotion,
+          journal_text: data.journalText,
+          color_palette: data.colorPalette,
+          memory_ids: data.memoryIds,
+        });
+      } catch (err) {
         console.error('Failed to update album in Supabase:', err);
-      });
+      }
     }
   };
 
   const deleteAlbum = async (albumId: string) => {
     setAlbums(prev => prev.filter(a => a.id !== albumId));
-    if (user && isConfigured) {
+    if (user) {
       try {
         await supabaseDeleteAlbum(albumId);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to delete album from Supabase:', err);
       }
     }
   };
 
-
   const updateDayReaction = (date: string, data: Partial<DayReaction>) => {
     setDayReactions(prev => {
-      const existing = prev.find(r => r.date === date);
-      if (existing) {
-        return prev.map(r => r.date === date ? { ...r, ...data } : r);
+      const idx = prev.findIndex(r => r.date === date);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...data };
+        return next;
       }
-      return [...prev, { date, emoji: '✨', ...data }];
+      return [...prev, { date, ...data }];
     });
+  };
+
+  const handleSortIntoAlbums = async () => {
+    if (memories.length === 0) return;
+    setIsSorting(true);
+    try {
+      const sorted = await sortMemoriesIntoAlbums(memories);
+      setAlbums(sorted);
+      if (user && sorted.length > 0) {
+        createAlbumsBatch(
+          sorted.map(a => ({
+            title: a.title,
+            description: a.description || null,
+            cover_photo: a.coverPhoto || null,
+            aesthetic_tone: a.aestheticTone || null,
+            dominant_emotion: a.dominantEmotion || null,
+            journal_text: a.journalText || null,
+            color_palette: a.colorPalette || [],
+            memory_ids: a.memoryIds,
+          }))
+        ).catch(err => console.error('Failed to save AI sorted albums:', err));
+      }
+      setActiveOverlay('albums');
+    } catch (err) {
+      console.error('AI sorting failed:', err);
+    } finally {
+      setIsSorting(false);
+    }
   };
 
   const handleAddMemoryAtDate = (date: string) => {
@@ -308,37 +405,6 @@ function ReminiqApp() {
     setIsAddModalOpen(true);
     setActiveOverlay(null);
   };
-
-
-
-  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
-  // Check for OAuth error redirected in URL
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
-      const queryParams = url.searchParams;
-
-      const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
-      const errorCode = hashParams.get('error') || queryParams.get('error');
-
-      if (errorDescription || errorCode) {
-        setToast({
-          message: decodeURIComponent(errorDescription || errorCode || 'Authentication failed. Please try again.').replace(/\+/g, ' '),
-          type: 'error',
-        });
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    }
-  }, []);
 
   return (
     <main className="min-h-screen">
@@ -394,6 +460,7 @@ function ReminiqApp() {
             activeOverlay={activeOverlay} 
             onClose={() => setActiveOverlay(null)} 
             memories={memories}
+            onAddMemory={addMemory}
             onDeleteMemory={deleteMemory}
             albums={albums}
             onUpdateAlbums={updateAlbums}
@@ -405,6 +472,8 @@ function ReminiqApp() {
             onSortAlbums={handleSortIntoAlbums}
             isSorting={isSorting}
             onAddMemoryAtDate={handleAddMemoryAtDate}
+            spotifyToken={spotifyToken}
+            onConnectSpotify={connectSpotify}
           />
         )}
       </AnimatePresence>
@@ -436,4 +505,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-
