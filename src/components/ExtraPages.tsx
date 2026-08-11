@@ -6,15 +6,14 @@ import {
   BookOpen, 
   FolderHeart, 
   Edit2, 
-  Trash2 
+  Trash2,
+  ChevronLeft
 } from 'lucide-react';
 import { Memory, Album, DayReaction } from '../lib/groq';
 import MonthlyPinboard from './MonthlyPinboard';
 import VinylVault from './VinylVault';
 import AISearchView from './AISearchView';
 import InteractiveScrapbook from './InteractiveScrapbook';
-import VinylVault from './VinylVault';
-import MonthlyFolders from './MonthlyFolders';
 import TimelineOverlay from './TimelineOverlay';
 import AlbumDetail from './AlbumDetail';
 
@@ -54,8 +53,6 @@ export default function ExtraPages({
   onSortAlbums,
   isSorting,
   onAddMemoryAtDate,
-  spotifyToken,
-  onConnectSpotify
   spotifyToken = null,
   onConnectSpotify = () => {}
 }: ExtraPagesProps) {
@@ -66,8 +63,8 @@ export default function ExtraPages({
 
   if (!activeOverlay) return null;
 
-  // 1. Monthly Pinboard (Connected Folders & Calendar Board)
-  if (activeOverlay === 'monthly-pinboard' || activeOverlay === 'calendar') {
+  // 1. Monthly Pinboard (Connected 12-Month Folders & Calendar Board)
+  if (activeOverlay === 'monthly-pinboard' || activeOverlay === 'calendar' || activeOverlay === 'folders') {
     return (
       <MonthlyPinboard
         memories={memories}
@@ -80,8 +77,8 @@ export default function ExtraPages({
     );
   }
 
-  // 2. Vinyl Vault (Dedicated Music Storage & Spotify Sync)
-  if (activeOverlay === 'vinyl-vault' || activeOverlay === 'music') {
+  // 2. Vinyl Vault (Dedicated Music Storage & Spotify Sync & In-Browser Audio)
+  if (activeOverlay === 'vinyl-vault' || activeOverlay === 'vinyl' || activeOverlay === 'music') {
     return (
       <VinylVault
         memories={memories}
@@ -94,7 +91,7 @@ export default function ExtraPages({
     );
   }
 
-  // 3. AI Memory Search
+  // 3. AI Memory Search (Groq Llama 3.3 Semantic Librarian)
   if (activeOverlay === 'ai-search' || activeOverlay === 'try-it') {
     return (
       <AISearchView
@@ -276,22 +273,6 @@ export default function ExtraPages({
                               <h3 className="font-serif font-bold text-dark-brown text-xl truncate">{album.title}</h3>
                             )}
 
-        {(activeOverlay === 'vinyl' || activeOverlay === 'music') && (
-          <VinylVault 
-            memories={memories} 
-            spotifyToken={spotifyToken || null} 
-            onConnectSpotify={onConnectSpotify || (() => {})} 
-          />
-        )}
-
-        {activeOverlay === 'folders' && (
-          <MonthlyFolders 
-            memories={memories} 
-            onAddMemoryAtDate={onAddMemoryAtDate} 
-            onDeleteMemory={onDeleteMemory} 
-          />
-        )}
-      </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

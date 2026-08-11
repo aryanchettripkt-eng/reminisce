@@ -179,15 +179,13 @@ export default function LandingPage({ onEnterVault, memories, onAddMemory }: Lan
       </div>
 
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-5 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-sm">
-        <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px] border-b border-light-brown/10 shadow-xs">
+        <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2 font-bold italic">
           Reminiq
         </a>
-        <span className="font-hand text-sm text-brown/60 uppercase tracking-[0.18em]">A quiet companion for every memory</span>
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 sm:px-10 py-4 flex items-center justify-between bg-gradient-to-b from-cream/95 to-transparent backdrop-blur-[4px]">
-        <a href="#" className="font-serif text-xl text-dark-brown flex items-center gap-2">
-          Reminiq
-        </a>
+        <div className="hidden sm:block font-hand text-sm text-brown/60 uppercase tracking-[0.18em]">
+          A quiet companion for every memory
+        </div>
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3 bg-parchment/80 border border-light-brown/20 rounded-full px-4 py-1.5 backdrop-blur-md shadow-sm">

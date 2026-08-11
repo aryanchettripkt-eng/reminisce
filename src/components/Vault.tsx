@@ -1287,12 +1287,7 @@ export default function Vault({
       />
 
       {/* Top Bar */}
-      <div className="fixed top-0 left-0 right-0 z-[1000] p-4 pointer-events-none">
-        <div className="mx-auto max-w-[calc(100%-2rem)] flex flex-col sm:flex-row items-center justify-between gap-3 bg-parchment/95 border border-light-brown/20 rounded-full shadow-2xl backdrop-blur-md px-4 py-3 pointer-events-auto">
-          <button 
-            onClick={onBack}
-            className="px-4 py-2 rounded-full flex items-center gap-2 font-hand text-sm text-brown/80 hover:bg-brown/10 transition-all"
-      <div className="fixed top-0 left-0 right-0 z-[1000] p-6 sm:p-7 flex items-center justify-between pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-[1000] p-4 sm:p-6 flex items-center justify-between pointer-events-none">
         <div className="pointer-events-auto">
           <button 
             onClick={onBack}
@@ -1301,45 +1296,15 @@ export default function Vault({
             <ChevronLeft size={16} />
             Back to Journal
           </button>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-brown/60">
-            <div className="rounded-full bg-white/90 px-3 py-1 border border-light-brown/20 shadow-sm">Memories: <span className="font-semibold text-dark-brown">{memoryCount}</span></div>
-            <div className="rounded-full bg-sage/10 px-3 py-1 text-sage border border-sage/20">Mood: <span className="font-semibold text-sage">{currentMood}</span></div>
-          </div>
-
-          <div className="flex gap-2">
-            <div className="flex bg-parchment/80 border border-light-brown/20 rounded-full p-0.5 backdrop-blur-md shadow-sm">
-              <button 
-                onClick={() => setSortBy('newest')}
-                className={`px-3 py-1 rounded-full font-hand text-xs transition-all ${sortBy === 'newest' ? 'bg-brown text-cream' : 'text-brown hover:bg-brown/10'}`}
-              >
-                Newest
-              </button>
-              <button 
-                onClick={() => setSortBy('oldest')}
-                className={`px-3 py-1 rounded-full font-hand text-xs transition-all ${sortBy === 'oldest' ? 'bg-brown text-cream' : 'text-brown hover:bg-brown/10'}`}
-              >
-                Oldest
-              </button>
-            </div>
-            <div className="flex bg-parchment/80 border border-light-brown/20 rounded-full p-0.5 backdrop-blur-md shadow-sm">
-              <button 
-                onClick={() => onSortAlbums()}
-                disabled={isSorting}
-                className="px-4 py-1.5 rounded-full font-hand text-sm text-moss hover:bg-sage/10 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                {isSorting ? (
-                  <span className="animate-pulse">Sorting...</span>
-                ) : (
-                  <>
-                    <Sparkles size={14} />
-                    AI Albums
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
+
+        {/* Center Indicators */}
+        <div className="hidden md:flex items-center gap-3 text-xs pointer-events-auto bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#c4ab91]/40 shadow-sm">
+          <span className="text-dark-brown/70 font-body">Memories: <strong className="text-dark-brown">{memoryCount}</strong></span>
+          <span className="text-dark-brown/30">•</span>
+          <span className="text-dark-brown/70 font-body">Mood: <strong className="text-moss capitalize">{currentMood}</strong></span>
+        </div>
+
         <div className="flex items-center gap-3 pointer-events-auto">
           <div className="flex items-center bg-white/80 backdrop-blur-md p-1 rounded-full border border-[#c4ab91]/40 shadow-sm">
             <button 
